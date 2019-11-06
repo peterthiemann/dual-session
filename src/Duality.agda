@@ -683,4 +683,5 @@ dual-compatibleS-subst (var NEG zero) ist rewrite trivial-weakenS (IND.dualS ist
 
 
 
---         (st-substG (swap-polG i gst) i (dualS ist)) ≡ 
+--         (st-substG (swap-polG i gst) i (dualS ist)) ≡
+--         (st-substG gst i ist)
