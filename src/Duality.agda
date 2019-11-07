@@ -599,26 +599,29 @@ module Experimental where
   subst-swap-dualG end i = refl
 
 
-subst-swap-dualT : ∀ {ist} → (t : IND.Type (suc n)) →
-  st-substT t zero ist ≡ st-substT (swap-polT zero t) zero (IND.dualS ist)
-subst-swap-dualS : ∀ {ist} → (st : IND.SType (suc n)) → st-substS st zero ist ≡ st-substS (swap-polS zero st) zero (IND.dualS ist)
-subst-swap-dualG : ∀ {ist} → (gst : IND.GType (suc n)) → 
-  st-substG gst zero ist ≡ st-substG (swap-polG zero gst) zero (IND.dualS ist)
+module NotSufficientlyGeneral where
+  subst-swap-dualT : ∀ {ist} → (t : IND.Type (suc n)) →
+    st-substT t zero ist ≡ st-substT (swap-polT zero t) zero (IND.dualS ist)
+  subst-swap-dualS : ∀ {ist} → (st : IND.SType (suc n)) → st-substS st zero ist ≡ st-substS (swap-polS zero st) zero (IND.dualS ist)
+  subst-swap-dualG : ∀ {ist} → (gst : IND.GType (suc n)) → 
+    st-substG gst zero ist ≡ st-substG (swap-polG zero gst) zero (IND.dualS ist)
 
-subst-swap-dualT TUnit = refl
-subst-swap-dualT TInt = refl
-subst-swap-dualT (TPair t t₁) = cong₂ TPair (subst-swap-dualT t) (subst-swap-dualT t₁)
-subst-swap-dualT (TChan st) = cong TChan (subst-swap-dualS st)
+  subst-swap-dualT TUnit = refl
+  subst-swap-dualT TInt = refl
+  subst-swap-dualT (TPair t t₁) = cong₂ TPair (subst-swap-dualT t) (subst-swap-dualT t₁)
+  subst-swap-dualT (TChan st) = cong TChan (subst-swap-dualS st)
 
-subst-swap-dualS (gdd gst) = cong gdd (subst-swap-dualG gst)
-subst-swap-dualS{n} (rec gst) = cong rec {!subst-swap-dualG!}
-subst-swap-dualS {ist = ist} (var POS zero) rewrite sym (IND.dual-invS ist) = refl
-subst-swap-dualS {ist = ist} (var NEG zero) = refl
-subst-swap-dualS {suc n} {ist = ist} (var p (suc i)) = {!st-substS (var p (suc i)) zero ist!}
+  subst-swap-dualS (gdd gst) = cong gdd (subst-swap-dualG gst)
+  subst-swap-dualS{n} (rec gst) = cong rec {!subst-swap-dualG!}
+  subst-swap-dualS {ist = ist} (var POS zero) rewrite sym (IND.dual-invS ist) = refl
+  subst-swap-dualS {ist = ist} (var NEG zero) = refl
+  subst-swap-dualS {suc n} {ist = ist} (var p (suc i)) = {!st-substS (var p (suc i)) zero ist!}
 
-subst-swap-dualG (transmit d t s) = cong₂ (transmit d) (subst-swap-dualT t) (subst-swap-dualS s)
-subst-swap-dualG (choice d m alt) = cong (choice d m) (ext (subst-swap-dualS ∘ alt))
-subst-swap-dualG end = refl
+  subst-swap-dualG (transmit d t s) = cong₂ (transmit d) (subst-swap-dualT t) (subst-swap-dualS s)
+  subst-swap-dualG (choice d m alt) = cong (choice d m) (ext (subst-swap-dualS ∘ alt))
+  subst-swap-dualG end = refl
+
+open Experimental
 
 -- show that the dualS function is compatible with unfolding
 -- that is
@@ -653,7 +656,7 @@ dual-compatibleG (choice d m alt) = eq-choice (dual-dir d) (dual-compatibleS ∘
 dual-compatibleG end = eq-end
 
 dual-compatibleG-subst (transmit d t s) ist
-  rewrite (subst-swap-dualT{ist = ist} t) =
+  rewrite (subst-swap-dualT{ist = ist} t zero) =
   eq-transmit (dual-dir d) ≈ᵗ-refl (dual-compatibleS-subst s ist)
 dual-compatibleG-subst (choice d m alt) ist =
   eq-choice (dual-dir d) λ i → dual-compatibleS-subst (alt i) ist
@@ -664,6 +667,9 @@ Equiv.force (dual-compatibleS-subst (gdd gst) ist) =
 Equiv.force (dual-compatibleS-subst (rec gst) ist)
   -- rewrite swap-swapG (dualG gst) (suc zero) zero
   -- | swap-pol-dualG (suc zero) gst
+  rewrite (subst-swap-dualG {ist = dualS ist} (swap-polG (suc zero) (swap-polG zero (dualG gst))) (suc zero))
+  | sym (IND.dual-invS ist)
+  | swap-pol-invG (suc zero) (swap-polG zero (dualG gst))
   =
   let gst' = (st-substG gst (suc zero) ist) in
   let ist' = (rec gst') in
