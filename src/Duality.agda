@@ -206,6 +206,8 @@ module IND where
       choice : (d : Dir) (m : ℕ) (alt : Fin m → SType n) → GType n
       end : GType n
     
+  TType = Type
+
   weakenS : (n : ℕ) → SType m → SType (m + n)
   weakenG : (n : ℕ) → GType m → GType (m + n)
   weakenT : (n : ℕ) → Type m → Type (m + n)
@@ -503,7 +505,7 @@ module IND where
   st-substS {n} (var p zero) zero st0 = weakenS n (dual-if p st0)
   st-substS {suc n} (var p zero) (suc i) st0 = var p zero
   st-substS {suc n} (var p (suc x)) zero st0 = var p x
-  st-substS {suc n} (var p (suc x)) (suc i) st0 = weaken1 (st-substS (var p x) i st0)
+  st-substS {suc n} (var p (suc x)) (suc i) st0 = weaken1S (st-substS (var p x) i st0)
 
   st-substG (transmit d t s) i st0 = transmit d (st-substT t i st0) (st-substS s i st0)
   st-substG (choice d m alt) i st0 = choice d m (λ j → st-substS (alt j) i st0)
@@ -623,6 +625,60 @@ module NotSufficientlyGeneral where
 
 open Experimental
 
+----------------------------------------------------------------------
+
+swap-i-weakenS : (i : Fin (suc n)) (s : IND.SType n) → swap-polS i (weaken1'S i s) ≡ weaken1'S i s
+swap-i-weakenG : (i : Fin (suc n)) (g : IND.GType n) → swap-polG i (weaken1'G i g) ≡ weaken1'G i g
+swap-i-weakenT : (i : Fin (suc n)) (t : IND.TType n) → swap-polT i (weaken1'T i t) ≡ weaken1'T i t
+
+swap-i-weakenS i (gdd gst) = cong gdd (swap-i-weakenG i gst)
+swap-i-weakenS i (rec gst) = cong rec (swap-i-weakenG (suc i) gst)
+swap-i-weakenS zero (var p zero) = refl
+swap-i-weakenS (suc i) (var p zero) = refl
+swap-i-weakenS zero (var p (suc x)) = refl
+swap-i-weakenS (suc i) (var p (suc x)) = cong weaken1S (swap-i-weakenS i (var p x))
+
+swap-i-weakenG i (transmit d t s) = cong₂ (transmit d) (swap-i-weakenT i t) (swap-i-weakenS i s)
+swap-i-weakenG i (choice d m alt) = cong (choice d m) (ext (swap-i-weakenS i ∘ alt))
+swap-i-weakenG i end = refl
+
+swap-i-weakenT i TUnit = refl
+swap-i-weakenT i TInt = refl
+swap-i-weakenT i (TPair t₁ t₂) = cong₂ TPair (swap-i-weakenT i t₁) (swap-i-weakenT i t₂)
+swap-i-weakenT i (TChan x) = cong TChan (swap-i-weakenS i x)
+
+subst-swapG : (ist : IND.SType 0) (i : Fin (suc (suc n))) (j : Fin′ i) (g : GType (suc (suc n))) →
+  st-substG (swap-polG (inject j) g) i ist ≡ swap-polG (inject! j) (st-substG g i ist)
+subst-swapS : (ist : IND.SType 0) (i : Fin (suc (suc n))) (j : Fin′ i) (s : IND.SType (suc (suc n))) →
+  st-substS (swap-polS (inject j) s) i ist ≡ swap-polS (inject! j) (st-substS s i ist)
+subst-swapT : (ist : IND.SType 0) (i : Fin (suc (suc n))) (j : Fin′ i) (g : IND.Type (suc (suc n))) →
+  st-substT (swap-polT (inject j) g) i ist ≡ swap-polT (inject! j) (st-substT g i ist)
+
+subst-swapG ist i j (transmit d t s) = cong₂ (transmit d) (subst-swapT ist i j t) (subst-swapS ist i j s)
+subst-swapG ist i j (choice d m alt) = cong (choice d m) (ext (λ x → subst-swapS ist i j (alt x)))
+subst-swapG ist i j end = refl
+
+subst-swapS ist i j (gdd gst) = cong gdd (subst-swapG ist i j gst)
+subst-swapS ist i j (rec gst) = cong rec (subst-swapG ist (suc i) (suc j) gst)
+subst-swapS{zero} ist zero () (var p zero)
+subst-swapS {zero} ist (suc zero) zero (var p zero) = refl
+subst-swapS {zero} ist (suc zero) zero (var p (suc x))
+  rewrite swap-i-weakenS zero (st-substS (var p x) zero ist) = refl
+subst-swapS{suc n} ist (suc i) zero (var p zero) = refl
+subst-swapS{suc n} ist (suc i) (suc j) (var p zero) = refl
+subst-swapS{suc n} ist zero () (var p (suc x))
+subst-swapS{suc n} ist (suc i) zero (var p (suc x))
+  rewrite swap-i-weakenS zero (st-substS (var p x) i ist) = refl
+subst-swapS{suc n} ist (suc i) (suc j) (var p (suc x)) 
+  rewrite subst-weakenS (swap-polS (inject j) (var p x)) i ist
+  | swap-weakenS (inject! j) (st-substS (var p x) i ist)
+  = cong weaken1S (subst-swapS ist i j (var p x))
+
+subst-swapT ist i j TUnit = refl
+subst-swapT ist i j TInt = refl
+subst-swapT ist i j (TPair t t₁) = cong₂ TPair (subst-swapT ist i j t) (subst-swapT ist i j t₁)
+subst-swapT ist i j (TChan x) = cong TChan (subst-swapS ist i j x)
+
 -- show that the dualS function is compatible with unfolding
 -- that is
 -- COI.dual ∘ ind2coi ≈ ind2coi ∘ IND.dual
@@ -670,6 +726,7 @@ Equiv.force (dual-compatibleS-subst (rec gst) ist)
   rewrite (subst-swap-dualG {ist = dualS ist} (swap-polG (suc zero) (swap-polG zero (dualG gst))) (suc zero))
   | sym (IND.dual-invS ist)
   | swap-pol-invG (suc zero) (swap-polG zero (dualG gst))
+  | subst-swapG ist (suc zero) zero (dualG gst)
   =
   let gst' = (st-substG gst (suc zero) ist) in
   let ist' = (rec gst') in
