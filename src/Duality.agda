@@ -314,20 +314,40 @@ module IND where
 
 ----------------------------------------------------------------------
 
-  weak-weak : (i : Fin (suc (suc n))) (s : SType (suc n)) → weaken1'S (suc i) {!!} ≡ weaken1S (weaken1'S i s)
-  -- weaken1'S (suc (suc i)) {!!} ≡ weaken1S (weaken1'S i s)
-  weak-weak i s = {!!}
+  weak-weakN : (i : Fin (suc n)) (j : Fin (suc n)) (le : Data.Fin._≤_ j i) (x : Fin n) → weaken1'N (suc i) (weaken1'N j x) ≡ weaken1'N (inject₁ j) (weaken1'N i x)
+  weak-weakG : (i : Fin (suc n)) (j : Fin (suc n)) (le : Data.Fin._≤_ j i) (g : GType n) → weaken1'G (suc i) (weaken1'G j g) ≡ weaken1'G (inject₁ j) (weaken1'G i g)
+  weak-weakS : (i : Fin (suc n)) (j : Fin (suc n)) (le : Data.Fin._≤_ j i) (s : SType n) → weaken1'S (suc i) (weaken1'S j s) ≡ weaken1'S (inject₁ j) (weaken1'S i s)
+  weak-weakT : (i : Fin (suc n)) (j : Fin (suc n)) (le : Data.Fin._≤_ j i) (t : Type n) → weaken1'T (suc i) (weaken1'T j t) ≡ weaken1'T (inject₁ j) (weaken1'T i t)
+
+  weak-weakN 0F 0F le x                              = refl
+  weak-weakN (suc i) 0F le x                         = refl
+  weak-weakN (suc i) (suc j) (s≤s le) zero           = refl
+  weak-weakN{suc n} (suc i) (suc j) (s≤s le) (suc x) = cong suc (weak-weakN i j le x) 
+
+  weak-weakG i j le (transmit d t s) = cong₂ (transmit d) (weak-weakT i j le t) (weak-weakS i j le s)
+  weak-weakG i j le (choice d m alt) = cong (choice d m) (ext (weak-weakS i j le ∘ alt))
+  weak-weakG i j le end              = refl
+
+  weak-weakS i j le (gdd gst) = cong gdd (weak-weakG i j le gst)
+  weak-weakS i j le (rec gst) = cong rec (weak-weakG (suc i) (suc j) (s≤s le) gst)
+  weak-weakS i j le (var p x) = cong (var p) (weak-weakN i j le x)
+
+  weak-weakT i j le TUnit        = refl
+  weak-weakT i j le TInt         = refl
+  weak-weakT i j le (TPair t t₁) = cong₂ TPair (weak-weakT i j le t) (weak-weakT i j le t₁)
+  weak-weakT i j le (TChan s)    = cong TChan (weak-weakS i j le s)
 
 ----------------------------------------------------------------------
 
+  -- weakening of later index
   swap-weaken1'G : (i : Fin (suc (suc n))) (j : Fin′ i) (gst : GType (suc n)) →
     swap-polG (inject j) (weaken1'G i gst) ≡ weaken1'G i (swap-polG (inject! j) gst)
-   
   swap-weaken1'S : (i : Fin (suc (suc n))) (j : Fin′ i) (sst : SType (suc n)) →
     swap-polS (inject j) (weaken1'S i sst) ≡ weaken1'S i (swap-polS (inject! j) sst)
-   
+  swap-weaken1'T : (i : Fin (suc (suc n))) (j : Fin′ i) (t : Type (suc n)) →
+    swap-polT (inject j) (weaken1'T i t) ≡ weaken1'T i (swap-polT (inject! j) t)
 
-  swap-weaken1'G i j (transmit d t s) = cong₂ (transmit d) {!!} (swap-weaken1'S i j s)
+  swap-weaken1'G i j (transmit d t s) = cong₂ (transmit d) (swap-weaken1'T i j t) (swap-weaken1'S i j s)
   swap-weaken1'G i j (choice d m alt) = cong (choice d m) (ext (swap-weaken1'S i j ∘ alt))
   swap-weaken1'G i j end = refl
 
@@ -337,11 +357,42 @@ module IND where
   swap-weaken1'S (suc i) zero (var p zero) = refl
   swap-weaken1'S (suc i) zero (var p (suc x)) = refl
   swap-weaken1'S (suc i) (suc j) (var p zero) = refl
-  swap-weaken1'S{suc n} (suc i) (suc j) (var p (suc x)) =
-    let sws = swap-weaken1'S{n} i j (var p x) in {!cong weaken1'S!}
+  swap-weaken1'S{suc n} (suc i) (suc j) (var p (suc x)) rewrite (weak-weakS i 0F z≤n (swap-polS (inject! j) (var p x))) = 
+    let sws = swap-weaken1'S{n} i j (var p x) in cong (weaken1'S 0F) sws
+
+  swap-weaken1'T i j TUnit         = refl
+  swap-weaken1'T i j TInt          = refl
+  swap-weaken1'T i j (TPair t₁ t₂) = cong₂ TPair (swap-weaken1'T i j t₁) (swap-weaken1'T i j t₂)
+  swap-weaken1'T i j (TChan s)     = cong TChan (swap-weaken1'S i j s)
 
 ----------------------------------------------------------------------
 
+  -- weakening of earlier index
+  swap-weaken1'S-sym : (i : Fin (suc n)) (j : Fin (suc n)) (le : Data.Fin._≤_ j i) → (s : SType (suc n)) →
+    swap-polS (suc i) (weaken1'S (inject₁ j) s) ≡ weaken1'S (inject₁ j) (swap-polS i s)
+  swap-weaken1'G-sym : (i : Fin (suc n)) (j : Fin (suc n)) (le : Data.Fin._≤_ j i) → (g : GType (suc n)) →
+    swap-polG (suc i) (weaken1'G (inject₁ j) g) ≡ weaken1'G (inject₁ j) (swap-polG i g)
+  swap-weaken1'T-sym : (i : Fin (suc n)) (j : Fin (suc n)) (le : Data.Fin._≤_ j i) → (t : Type (suc n)) →
+    swap-polT (suc i) (weaken1'T (inject₁ j) t) ≡ weaken1'T (inject₁ j) (swap-polT i t)
+
+  swap-weaken1'S-sym i j le (gdd gst)       = cong gdd (swap-weaken1'G-sym i j le gst)
+  swap-weaken1'S-sym i j le (rec gst)       = cong rec (swap-weaken1'G-sym (suc i) (suc j) (s≤s le) gst)
+  swap-weaken1'S-sym 0F 0F le (var p x)     = refl
+  swap-weaken1'S-sym (suc i) 0F le (var p x) = refl
+  swap-weaken1'S-sym{suc n} (suc i) (suc j) le (var p zero) = refl
+  swap-weaken1'S-sym{suc n} (suc i) (suc j) (s≤s le) (var p (suc x)) rewrite (weak-weakS (inject₁ j) 0F z≤n (swap-polS i (var p x))) =
+    let sws = swap-weaken1'S-sym{n} i j le (var p x) in cong (weaken1'S 0F) sws
+
+  swap-weaken1'G-sym i j le (transmit d t s) = cong₂ (transmit d) (swap-weaken1'T-sym i j le t) (swap-weaken1'S-sym i j le s)
+  swap-weaken1'G-sym i j le (choice d m alt) = cong (choice d m) (ext ((swap-weaken1'S-sym i j le) ∘ alt))
+  swap-weaken1'G-sym i j le end = refl
+
+  swap-weaken1'T-sym i j le TUnit = refl
+  swap-weaken1'T-sym i j le TInt = refl
+  swap-weaken1'T-sym i j le (TPair t t₁) = cong₂ (TPair) (swap-weaken1'T-sym i j le t) (swap-weaken1'T-sym i j le t₁)
+  swap-weaken1'T-sym i j le (TChan s) = cong (TChan) (swap-weaken1'S-sym i j le s)
+
+  -- old definition not general enough, problem with recursive case, requires weaken1'S 1F
   swap-weakenS : (i : Fin (suc n)) → (s : SType (suc n)) →
     swap-polS (suc i) (weaken1S s) ≡ weaken1S (swap-polS i s)
   swap-weakenG : (i : Fin (suc n)) → (g : GType (suc n)) →
@@ -349,21 +400,9 @@ module IND where
   swap-weakenT : (i : Fin (suc n)) → (t : Type (suc n)) →
     swap-polT (suc i) (weaken1T t) ≡ weaken1T (swap-polT i t)
 
-  swap-weakenS i (gdd gst) = cong gdd (swap-weakenG i gst)
-  swap-weakenS i (rec gst) = cong rec {!!}
-  swap-weakenS zero (var p zero) = refl
-  swap-weakenS (suc i) (var p zero) = refl
-  swap-weakenS zero (var p (suc x)) = refl
-  swap-weakenS (suc i) (var p (suc x)) = refl
-
-  swap-weakenG i (transmit d t s) = cong₂ (transmit d) (swap-weakenT i t) (swap-weakenS i s)
-  swap-weakenG i (choice d m alt) = cong (choice d m) (ext (λ x → swap-weakenS i (alt x)))
-  swap-weakenG i end = refl
-
-  swap-weakenT i TUnit = refl
-  swap-weakenT i TInt = refl
-  swap-weakenT i (TPair t₁ t₂) = cong₂ TPair (swap-weakenT i t₁) (swap-weakenT i t₂)
-  swap-weakenT i (TChan x) = cong TChan (swap-weakenS i x)
+  swap-weakenS i s = swap-weaken1'S-sym i 0F z≤n s
+  swap-weakenG i g = swap-weaken1'G-sym i 0F z≤n g
+  swap-weakenT i t = swap-weaken1'T-sym i 0F z≤n t
 
 ----------------------------------------------------------------------
 
@@ -407,28 +446,16 @@ module IND where
 
 ----------------------------------------------------------------------
 
-  dual-weakenS : (i : Fin n) (s : SType n) → dualS (weaken1'S (suc i) s) ≡ weaken1'S (suc i) (dualS s)
-  dual-weakenG : (i : Fin n) (g : GType n) → dualG (weaken1'G (suc i) g) ≡ weaken1'G (suc i) (dualG g)
+  dual-weakenS : (i : Fin (suc n)) (s : SType n) → dualS (weaken1'S i s) ≡ weaken1'S i (dualS s)
+  dual-weakenG : (i : Fin (suc n)) (g : GType n) → dualG (weaken1'G i g) ≡ weaken1'G i (dualG g)
 
   dual-weakenS i (gdd gst) = cong gdd (dual-weakenG i gst)
-  dual-weakenS i (rec gst) = cong rec {!!}
+  dual-weakenS i (rec gst) rewrite (sym (swap-weaken1'G (suc i) 0F (dualG gst))) = cong rec (cong (swap-polG 0F) (dual-weakenG (suc i) gst))
   dual-weakenS i (var p x) = refl
 
   dual-weakenG i (transmit d t s) = cong₂ (transmit (dual-dir d)) refl (dual-weakenS i s)
   dual-weakenG i (choice d m alt) = cong (choice (dual-dir d) m) (ext (dual-weakenS i ∘ alt))
   dual-weakenG i end = refl
-
-----------------------------------------------------------------------
-
-  dual-weaken0S : (ist : SType 0) → dualS (weaken1'S zero ist) ≡ weaken1'S zero (dualS ist)
-  dual-weaken0G : (igt : GType 0) → dualG (weaken1'G zero igt) ≡ weaken1'G zero (dualG igt)
-
-  dual-weaken0S (gdd gst) = cong gdd (dual-weaken0G gst)
-  dual-weaken0S (rec gst) rewrite dual-weakenG zero gst = cong rec {!!}
-
-  dual-weaken0G (transmit d t s) = cong₂ (transmit (dual-dir d)) refl (dual-weaken0S s)
-  dual-weaken0G (choice d m alt) = cong (choice (dual-dir d) m) (ext (λ x → dual-weaken0S (alt x)))
-  dual-weaken0G end = refl
 
 ----------------------------------------------------------------------
   aux : (i : Fin n) (x : Fin n) (p' : Polarity) →
@@ -469,8 +496,8 @@ module IND where
   swap-swapS (var p zero) (suc i) (suc j) = refl
   swap-swapS (var p (suc x)) zero ()
   swap-swapS (var p (suc x)) (suc i) zero
-    with var-suc i x (dual-pol p)
-  ... | p' , snd rewrite snd = {!!}
+    with var-suc i x p
+  ... | p' , snd rewrite snd = refl
   swap-swapS {suc n} (var p (suc x)) (suc i) (suc j) 
     rewrite swap-weakenS i (swap-polS (inject j) (var p x))
     with swap-swapS (var p x) i j
@@ -493,7 +520,7 @@ module IND where
   swap-pol-dualS (suc i) (var p zero) = refl
   swap-pol-dualS zero (var p (suc x)) = refl
   swap-pol-dualS {suc n} (suc i) (var p (suc x))
-    rewrite dual-weakenS i (swap-polS i (var p x)) = {!!} -- cong weaken1S (swap-pol-dualS i (var p x))
+     rewrite (dual-weakenS 0F (swap-polS i (var p x))) =  cong weaken1S (swap-pol-dualS i (var p x)) 
 
 ----------------------------------------------------------------------
 
@@ -513,6 +540,11 @@ module IND where
   dual-if : Polarity → SType n → SType n
   dual-if POS s = s
   dual-if NEG s = dualS s
+
+  dual-if-dual : (p : Polarity) (ist : SType 0) → dual-if p ist ≡ dual-if (dual-pol p) (dualS ist)
+  dual-if-dual POS ist = (dual-invS ist)
+  dual-if-dual NEG ist = refl 
+
 
 ----------------------------------------------------------------------
 
@@ -611,9 +643,15 @@ SType.force (ind2coiS (gdd gst)) = ind2coiG gst
 SType.force (ind2coiS (rec gst)) = ind2coiG (st-substG gst zero (rec gst))
 
 module Experimental where
+
   subst-weakenS : (s : IND.SType (suc n)) (i : Fin (suc n)) (s0 : IND.SType 0)
     → st-substS (weaken1S s) (suc i) s0 ≡ weaken1S (st-substS s i s0)
-  subst-weakenS s i s0 = {!!}
+  subst-weakenG : (g : IND.GType (suc n)) (i : Fin (suc n)) (s0 : IND.SType 0)
+    → st-substG (weaken1G g) (suc i) s0 ≡ weaken1G (st-substG g i s0)
+
+  subst-weakenS (gdd gst) i s0 = cong gdd (subst-weakenG gst i s0)
+  subst-weakenS (rec gst) i s0 = cong rec {!subst-weakenG!}          -- more general definition required for recursion
+  subst-weakenS (var p x) i s0 = {!!}
 
   subst-swap-dualT : ∀ {ist} → (t : IND.Type (suc n)) (i : Fin (suc n)) →
     st-substT t i ist ≡ st-substT (swap-polT i t) i (IND.dualS ist)
@@ -629,12 +667,12 @@ module Experimental where
 
   subst-swap-dualS (gdd gst) i = cong gdd (subst-swap-dualG gst i)
   subst-swap-dualS (rec gst) i = cong rec (subst-swap-dualG gst (suc i))
-  subst-swap-dualS (var p zero) zero = {!!}
+  subst-swap-dualS {n} {ist} (var p zero) zero = cong (weakenS n) (dual-if-dual p ist)
   subst-swap-dualS {suc n} (var p zero) (suc i) = refl
-  subst-swap-dualS {suc n} (var p (suc x)) zero = {!!}
+  subst-swap-dualS {suc n} (var p (suc x)) zero = refl
   subst-swap-dualS {suc n}{ist} (var p (suc x)) (suc i)
     rewrite subst-weakenS (swap-polS i (var p x)) i (dualS ist) 
-    = {!!}
+    = cong (weaken1'S 0F) (subst-swap-dualS ((var p x)) i)
 
   subst-swap-dualG (transmit d t s) i = cong₂ (transmit d) (subst-swap-dualT t i) (subst-swap-dualS s i)
   subst-swap-dualG (choice d m alt) i = cong (choice d m) (ext (λ x → subst-swap-dualS (alt x) i))
@@ -816,11 +854,11 @@ propG (choice d m alt) = cong (choice (dual-dir d) m) (ext (λ x → {!!}))
 propG end = refl
 
 Equiv.force (dual-compatibleS (gdd gst)) = dual-compatibleG gst
-Equiv.force (dual-compatibleS (rec gst)) 
-  with (subst-swap-dualG {ist = rec gst} (dualG gst) zero )
-... | ssd =
-  let ind = dual-compatibleG (st-substG gst zero (rec gst)) in
-  {!dual-compatibleG!} -- dual-compatibleG-subst gst (rec gst)
+Equiv.force (dual-compatibleS (rec gst)) = -- with (subst-swap-dualG {ist = rec gst} (dualG gst) zero)
+-- ... | ssd =
+--  let ind = dual-compatibleG (st-substG gst zero (rec gst)) in
+  dual-compatibleG-subst gst (rec gst) -- dual-compatibleG-subst gst (rec gst)
+
 
 dual-compatibleG (transmit d t s) = eq-transmit (dual-dir d) ≈ᵗ-refl (dual-compatibleS s)
 dual-compatibleG (choice d m alt) = eq-choice (dual-dir d) (dual-compatibleS ∘ alt)
