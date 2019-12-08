@@ -594,6 +594,18 @@ module IND where
 
 ----------------------------------------------------------------------
 
+  trivial-subst-var : (p : Polarity) (x : Fin n) (ist₁ ist₂ : SType 0)
+    → st-substS (var p (suc x)) 0F ist₁ ≡ st-substS (var p (suc x)) 0F ist₂
+  trivial-subst-var p 0F ist1 ist2 = refl
+  trivial-subst-var p (suc x) ist1 ist2 = refl
+
+  trivial-subst-var' : (p : Polarity) (i : Fin n) (ist₁ ist₂ : SType 0)
+    → st-substS (var p 0F) (suc i) ist₁ ≡ st-substS (var p 0F) (suc i) ist₂
+  trivial-subst-var' p 0F ist1 ist2 = refl
+  trivial-subst-var' p (suc x) ist1 ist2 = refl
+
+----------------------------------------------------------------------
+
 module INDExample where
   open IND
 
@@ -777,11 +789,11 @@ subst-swapT ist i j (TPair t t₁) = cong₂ TPair (subst-swapT ist i j t) (subs
 subst-swapT ist i j (TChan x) = cong TChan (subst-swapS ist i j x)
 
 ----------------------------------------------------------------------
-
+{-- 
 subst-dualG : (ist : IND.SType 0) (g : IND.GType (suc (suc n))) →
-  st-substG (dualG g) (suc zero) ist ≡ dualG (st-substG g (suc zero) ist)
+  st-substG (dualG g) j ist ≡ dualG (st-substG g j ist)
 subst-dualS : (ist : IND.SType 0) (s : IND.SType (suc (suc n))) →
-  st-substS (dualS s) (suc zero) ist ≡ dualS (st-substS s (suc zero) ist)
+  st-substS (dualS s) j ist ≡ dualS (st-substS s j ist)
 
 subst-dualG ist (transmit d t s) = cong₂ (transmit (dual-dir d)) refl (subst-dualS ist s)
 subst-dualG ist (choice d m alt) = cong (choice (dual-dir d) m) (ext (subst-dualS ist ∘ alt))
@@ -817,9 +829,35 @@ dual-rec1S ist (var POS (suc zero))
   rewrite trivial-weakenS ist | trivial-weakenS (dualS ist)
   = {!!}
 dual-rec1S ist (var NEG (suc zero)) = {!!}
-
+--}
 ----------------------------------------------------------------------
 
+-- More general definition for recursive case
+dual-recT' : (t : TType (suc n)) (i : Fin (suc n)) (ist : IND.SType 0)
+  → st-substT (swap-polT i t) i (dualS ist) ≡ st-substT t i ist
+dual-recG' : (g : GType (suc n)) (i : Fin (suc n)) (ist : IND.SType 0)
+  → st-substG (swap-polG i g) i (dualS ist) ≡ st-substG g i ist
+dual-recS' : (s : IND.SType (suc n)) (i : Fin (suc n)) (ist : IND.SType 0)
+  → st-substS (swap-polS i s) i (dualS ist) ≡ st-substS s i ist
+
+dual-recT' TUnit i ist = refl
+dual-recT' TInt i ist = refl
+dual-recT' (TPair t t₁) i ist = cong₂ TPair (dual-recT' t i ist) (dual-recT' t₁ i ist)
+dual-recT' (TChan s) i ist = cong TChan (dual-recS' s i ist)
+
+dual-recG' (transmit d t s) i ist = cong₂ (transmit d) (dual-recT' t i ist) (dual-recS' s i ist)
+dual-recG' (choice d m alt) i ist = cong (choice d m) (ext (λ m' → dual-recS' (alt m') i ist))
+dual-recG' end i ist = refl
+
+dual-recS' (gdd gst) i ist = cong gdd (dual-recG' gst i ist)
+dual-recS' (rec gst) i ist = cong rec (dual-recG' gst (suc i) ist)
+dual-recS' (var p 0F) 0F ist rewrite (dual-if-dual p ist) = refl
+dual-recS' (var p (suc x)) 0F ist = trivial-subst-var p x (dualS ist) (ist)
+dual-recS' (var p 0F) (suc i) ist = trivial-subst-var' p i (dualS ist) (ist) 
+dual-recS' (var p (suc x)) (suc i) ist rewrite (subst-swap-dualS{ist = ist} (var p (suc x)) (suc i))
+  = refl
+
+{--
 dual-recT : (ist : IND.SType 0) (t : TType 1) →
   st-substT (swap-polT zero t) zero (dualS ist) ≡
   st-substT t zero ist
@@ -848,6 +886,7 @@ dual-recG0 : (gst : GType 1) →
   (st-substG (swap-polG zero (dualG gst)) zero (rec (swap-polG zero (dualG gst)))) ≡
   (dualG (st-substG gst zero (rec gst)))
 dual-recG0 gst = {!!}
+--}
 
 
 -- show that the dualS function is compatible with unfolding
