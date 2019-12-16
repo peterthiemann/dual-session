@@ -88,7 +88,7 @@ module COI where
   variable
     t t₁ t₂ t₁' t₂' : Type
     s s₁ s₂ : SType
-    s' : STypeF SType
+    s' s₁' s₂' : STypeF SType
 
   -- type equivalence
   data EquivT (R : SType → SType → Set) : Type → Type → Set where
@@ -113,6 +113,7 @@ module COI where
   _≈'_ = EquivF Equiv
   _≈ᵗ_ = EquivT Equiv
 
+  -- reflexivity
   ≈ᵗ-refl : t ≈ᵗ t
   ≈-refl : s ≈ s
   ≈'-refl : s' ≈' s'
@@ -128,6 +129,22 @@ module COI where
   ≈ᵗ-refl {TPair t t₁} = eq-pair ≈ᵗ-refl ≈ᵗ-refl
   ≈ᵗ-refl {TChan x} = eq-chan ≈-refl
 
+  -- symmetry
+  ≈-symm : s₁ ≈ s₂ → s₂ ≈ s₁
+  ≈'-symm : s₁' ≈' s₂' → s₂' ≈' s₁'
+  ≈ᵗ-symm : t₁ ≈ᵗ t₂ → t₂ ≈ᵗ t₁
+
+  force (≈-symm s₁≈s₂) = ≈'-symm (force s₁≈s₂)
+
+  ≈'-symm (eq-transmit d x x₁) = eq-transmit d (≈ᵗ-symm x) (≈-symm x₁)
+  ≈'-symm (eq-choice d x) = eq-choice d (λ i → ≈-symm (x i))
+  ≈'-symm eq-end = eq-end
+
+  ≈ᵗ-symm eq-unit = eq-unit
+  ≈ᵗ-symm eq-int = eq-int
+  ≈ᵗ-symm (eq-pair t₁≈t₂ t₁≈t₃) = eq-pair (≈ᵗ-symm t₁≈t₂) (≈ᵗ-symm t₁≈t₃)
+  ≈ᵗ-symm (eq-chan x) = eq-chan (≈-symm x)
+  
   ----------------------------------------------------------------------
   -- duality
   dual : SType → SType
@@ -178,9 +195,11 @@ module IND where
     
   TType = Type
 
+  -- weakening
+
   weakenS : (n : ℕ) → SType m → SType (m + n)
   weakenG : (n : ℕ) → GType m → GType (m + n)
-  weakenT : (n : ℕ) → Type m → Type (m + n)
+  weakenT : (n : ℕ) → TType m → TType (m + n)
   
   weakenS n (gdd gst) = gdd (weakenG n gst)
   weakenS n (rec gst) = rec (weakenG n gst)
@@ -199,6 +218,20 @@ module IND where
   weaken1{m} stm with weakenS 1 stm
   ... | r rewrite n+1=suc-n {m} = r
 
+  module CheckWeaken where
+    s0 : SType 0
+    s0 = rec (transmit SND TUnit (var POS zero))
+    s1 : SType 1
+    s1 = rec (transmit SND TUnit (var POS zero))
+    s2 : SType 2
+    s2 = rec (transmit SND TUnit (var POS zero))
+
+    check-weakenS1 : weakenS 1 s0 ≡ s1
+    check-weakenS1 = cong rec (cong (transmit SND TUnit) refl)
+
+    check-weakenS2 : weakenS 2 s0 ≡ s2
+    check-weakenS2 = cong rec (cong (transmit SND TUnit) refl)
+
   weaken1'N : Fin (suc n) → Fin n → Fin (suc n)
   weaken1'N zero x = suc x
   weaken1'N (suc i) zero = zero
@@ -206,7 +239,7 @@ module IND where
 
   weaken1'S : Fin (suc n) → SType n → SType (suc n)
   weaken1'G : Fin (suc n) → GType n → GType (suc n)
-  weaken1'T : Fin (suc n) → Type n → Type (suc n)
+  weaken1'T : Fin (suc n) → TType n → TType (suc n)
 
   weaken1'S i (gdd gst) = gdd (weaken1'G i gst)
   weaken1'S i (rec gst) = rec (weaken1'G (suc i) gst)
@@ -229,6 +262,27 @@ module IND where
   weaken1G = weaken1'G zero
   weaken1T = weaken1'T zero
 
+  module CheckWeaken1' where
+    sxy : ∀ n → Fin (suc n) → SType n
+    sxy n x = rec (transmit SND TUnit (var POS x))
+
+    s00 : SType 0
+    s00 = sxy 0 0F
+    s10 : SType 1
+    s10 = sxy 1 0F
+    s11 : SType 1
+    s11 = sxy 1 1F
+    s22 : SType 2
+    s22 = sxy 2 2F
+  
+    check-weaken-s01 : weaken1'S 0F s00 ≡ s10
+    check-weaken-s01 = refl
+
+    check-weaken-s1-s2 : weaken1'S 0F s11 ≡ s22
+    check-weaken-s1-s2 = refl
+
+    check-weaken-s21 : weaken1'S 1F (sxy 2 1F) ≡ sxy 3 1F
+    check-weaken-s21 = refl
 ----------------------------------------------------------------------
 
   dual-pol : Polarity → Polarity
