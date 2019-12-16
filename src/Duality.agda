@@ -14,6 +14,8 @@ open import Relation.Binary.PropositionalEquality hiding (Extensionality)
 
 open import Agda.Builtin.Equality.Rewrite
 
+open import Extensionality
+
 -- variables
 
 variable
@@ -39,13 +41,6 @@ inject+0-x=x {x = zero} = refl
 inject+0-x=x {x = suc x} = cong suc inject+0-x=x
 
 {-# REWRITE inject+0-x=x #-}
-
-----------------------------------------------------------------------
--- extensionality
-
-postulate
-  ext : {A : Set}{B : A → Set}{f : (x : A) → B x} {g : (x : A) → B x} →
-    (∀ x → f x ≡ g x) → f ≡ g
 
 ----------------------------------------------------------------------
 -- direction
