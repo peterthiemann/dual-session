@@ -6,7 +6,10 @@ open import Data.Vec
 
 open import Function
 
+open import Relation.Binary.PropositionalEquality hiding (Extensionality)
+
 open import Duality
+open import Extensionality
 
 -- session types restricted to tail recursion
 
@@ -41,6 +44,47 @@ dualS (var x) = var x
 dualG (transmit d t s) = transmit (dual-dir d) t (dualS s)
 dualG (choice d m alt) = choice (dual-dir d) m (dualS ∘ alt)
 dualG end = end
+
+-- injection of tail recursive session types
+toT : Type → IND.TType 0
+toS : SType n → IND.SType n
+toG : GType n → IND.GType n
+
+toT TUnit = IND.TUnit
+toT TInt = IND.TInt
+toT (TPair t t₁) = IND.TPair (toT t) (toT t₁)
+toT (TChan s) = IND.TChan (toS s)
+
+toS (gdd g) = IND.gdd (toG g)
+toS (rec g) = IND.rec (toG g)
+toS (var x) = IND.var IND.POS x
+
+toG (transmit d t s) = IND.transmit d (IND.weakenT _ (toT t)) (toS s)
+toG (choice d m alt) = IND.choice d m (toS ∘ alt)
+toG end = IND.end
+
+-- naive dual maps to dual
+naive-dual1S : (s : SType (suc n)) → toS (dualS s) ≡ IND.swap-polS 0F (IND.dualS (toS s))
+naive-dual1G : (g : GType (suc n)) → toG (dualG g) ≡ IND.swap-polG 0F (IND.dualG (toG g))
+
+naive-dual1S (gdd g) = cong IND.gdd (naive-dual1G g)
+naive-dual1S (rec g) = cong IND.rec {!!}
+naive-dual1S (var 0F) = refl
+naive-dual1S (var (suc x)) = {!!}
+
+naive-dual1G (transmit d t s) = {!!}
+naive-dual1G (choice d m alt) = {!!}
+naive-dual1G end = refl
+
+naive-dualS : (s : SType 0) → toS (dualS s) ≡ IND.dualS (toS s)
+naive-dualG : (g : GType 0) → toG (dualG g) ≡ IND.dualG (toG g)
+
+naive-dualS (gdd g) = cong IND.gdd (naive-dualG g)
+naive-dualS (rec g) = cong IND.rec (naive-dual1G g)
+
+naive-dualG (transmit d t s) = cong (IND.transmit (dual-dir d) _) (naive-dualS s)
+naive-dualG (choice d m alt) = cong (IND.choice (dual-dir d) m) (ext (naive-dualS ∘ alt))
+naive-dualG end = refl
 
 -- weakening
 
@@ -106,13 +150,26 @@ tail2coiG end = COI.end
 _≈_ = COI._≈_
 _≈'_ = COI._≈'_
 
+lemmaG : ∀ g → dualG (st-substG g 0F (rec g)) ≡ st-substG (dualG g) 0F (rec (dualG g))
+lemmaS : ∀ s g0 → dualS (st-substS s 0F (rec g0)) ≡ st-substS (dualS s) 0F (rec (dualG g0))
+
+lemmaG (transmit d t s) = cong (transmit (dual-dir d) t) (lemmaS s (transmit d t s))
+lemmaG (choice d m alt) = cong (choice (dual-dir d) m) (ext (λ x → lemmaS (alt x) (choice d m alt)))
+lemmaG end = refl
+
+lemmaS (gdd g) g0 = cong gdd {!lemmaG g g0!}
+lemmaS (rec g) g0 = {!!}
+lemmaS (var x) g0 = {!!}
+
+-- main proposition
+
 dual-tailS : (s : SType 0) →
   COI.dual (tail2coiS s) ≈ tail2coiS (dualS s)
 dual-tailG : (g : GType 0) →
   COI.dualF (tail2coiG g) ≈' tail2coiG (dualG g)
 
 COI.Equiv.force (dual-tailS (gdd g)) = dual-tailG g
-COI.Equiv.force (dual-tailS (rec g)) = {!!}
+COI.Equiv.force (dual-tailS (rec g)) = let qq = dualG (st-substG g 0F (rec g)) in {!qq!}
 
 dual-tailG (transmit d t s) = COI.eq-transmit (dual-dir d) COI.≈ᵗ-refl (dual-tailS s)
 dual-tailG (choice d m alt) = COI.eq-choice (dual-dir d) (dual-tailS ∘ alt)
