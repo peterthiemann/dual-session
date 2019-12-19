@@ -42,23 +42,7 @@ inject+0-x=x {x = suc x} = cong suc inject+0-x=x
 
 {-# REWRITE inject+0-x=x #-}
 
-----------------------------------------------------------------------
--- direction
-
-data Dir : Set where
-  SND RCV : Dir
-
-variable
-  d d₁ d₂ d₃ : Dir
-
--- dual
-dual-dir : Dir → Dir
-dual-dir SND = RCV
-dual-dir RCV = SND
-
-dual-dir-inv : (d : Dir) → dual-dir (dual-dir d) ≡ d
-dual-dir-inv SND = refl
-dual-dir-inv RCV = refl
+open import Direction
 
 ----------------------------------------------------------------------
 -- session types coinductively
@@ -304,7 +288,7 @@ module IND where
   weakenS n (var p x) = var p (inject+ n x)
 
   weakenG n (transmit d t s) = transmit d (weakenT n t) (weakenS n s)
-  weakenG n (choice d m alt) = choice d m (λ i → weakenS n (alt i))
+  weakenG n (choice d m alt) = choice d m (weakenS n ∘ alt)
   weakenG n end = end
 
   weakenT n TUnit = TUnit
