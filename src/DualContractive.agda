@@ -3,7 +3,7 @@ module DualContractive where
 
 open import Data.Fin
 open import Data.Maybe
-open import Data.Nat hiding (_≤_) renaming (_+_ to _+ℕ_)
+open import Data.Nat hiding (_≤_ ; compare) renaming (_+_ to _+ℕ_)
 open import Data.Nat.Properties
 open import Data.Sum hiding (map)
 open import Data.Product
@@ -17,9 +17,15 @@ open import Direction
 
 open import Extensionality
 
+open import Max hiding (n)
+
+----------------------------------------------------------------------
+-- see also https://github.com/zmthy/recursive-types/tree/ftfjp16
+-- for encoding of recursive types
+
 variable
   m n : ℕ
-  i j : Fin n 
+  i i' j : Fin n 
 
 ----------------------------------------------------------------------
 -- lemmas for rewriting
@@ -40,229 +46,6 @@ n+sucm=sucn+m (suc n) m = cong suc (n+sucm=sucn+m n m)
 
 open import Agda.Builtin.Equality.Rewrite
 
-
-----------------------------------------------------------------------
-module Experimental where
-
-  data CSType (n : ℕ) (i : Fin (suc n)) : Set
-  -- contractive session type with n free variables
-  -- uses of variables greater than or equal to i are contractive
-  -- uses of variables less than i are forbidden
-
-  data CTType (n : ℕ) : Set where
-    TInt : CTType n
-    TChn : (s : CSType n 0F) → CTType n
-
-  data CSType n i where
-    xmt : (d : Dir) (t : CTType n) (s : CSType n 0F) → CSType n i
-    end : CSType n i
-    rec : (s : CSType (suc n) (suc i)) → CSType n i
-    var : (x : Fin n) (i≤x : i ≤ inject₁ x) → CSType n i
-
-  impossible : (x : Fin n) → ¬ fromℕ n ≤ inject₁ x
-  impossible 0F ()
-  impossible (suc x) (s≤s n≤x) = impossible x n≤x
-
-  module Example where
-
-    s13 : CSType 3 1F
-    s13 = var 1F (s≤s z≤n)
-    s12 : CSType 2 0F
-    s12 = rec s13
-    s11 : CSType 2 2F
-    s11 = xmt SND TInt s12
-    s10 : CSType 1 1F
-    s10 = rec s11
-
-    s1 : CSType 0 0F
-    s1 = rec (xmt SND TInt (rec (var 1F (s≤s z≤n))))
-
-    -- need s1 at type CSType 1 1F
-    s1-u1 : CSType 0 0F
-    s1-u1 = xmt SND TInt (rec (rec (xmt SND  TInt (rec (var 1F (s≤s z≤n))))))
-
-  lemma-inject : ∀ x m → (i≤x : i ≤ inject₁ x) → inject+ m i ≤ inject₁ (inject+ m x)
-  lemma-inject {i = 0F} 0F m z≤n = z≤n
-  lemma-inject {i = 0F} (suc x) m z≤n = z≤n
-  lemma-inject {i = suc i} 0F m ()
-  lemma-inject {i = suc i} (suc x) m (s≤s i≤x) = s≤s (lemma-inject x m i≤x)
-
-  sweaken0 : ∀ m → CSType n i → CSType (n +ℕ m) (inject+ m i)
-  tweaken0 : ∀ m → CTType n → CTType (n +ℕ m)
-
-  sweaken0 m (xmt d t s) = xmt d (tweaken0 m t) (sweaken0 m s)
-  sweaken0 m (rec s) = rec (sweaken0 m s)
-  sweaken0 m (var x i≤x) = var (inject+ m x) (lemma-inject x m i≤x)
-  sweaken0 m end = end
-
-  tweaken0 m TInt = TInt
-  tweaken0 m (TChn s) = TChn (sweaken0 m s)
-
-  tweaken' : ∀ m → CTType n → CTType (n +ℕ m)
-  sweaken' : ∀ m → CSType n (fromℕ n) → CSType (n +ℕ m) (fromℕ (n +ℕ m))
-
-  sweaken' m (xmt d t s) = xmt d (tweaken' m t) (sweaken0 m s)
-  sweaken' m end = end
-  sweaken' m (rec s) = rec (sweaken' m s)
-  sweaken' m (var x i≤x) with impossible x i≤x
-  sweaken' m (var x i≤x) | ()
-
-  tweaken' m TInt = TInt
-  tweaken' m (TChn s) = TChn (sweaken0 m s)
-
-  module revisit-example where
-
-    s1 : CSType 0 0F
-    s1 = rec (xmt SND TInt (rec (var 1F (s≤s z≤n))))
-
-    s1w : CSType 1 1F
-    s1w = sweaken' 1 s1
-
-    -- need s1 at type CSType 1 1F
-    s1-u1 : CSType 0 0F
-    s1-u1 = xmt SND TInt (rec (rec (xmt SND  TInt (rec (var 1F (s≤s z≤n))))))
-
-    s1-u1w : CSType 0 0F
-    s1-u1w = xmt SND TInt (rec s1w)
-
-    u1=u1w : s1-u1 ≡ s1-u1w
-    u1=u1w = refl
-
-  tsubst1 : (j : Fin (suc n)) → CSType 0 0F → CTType (suc n) → CTType n
-  ssubst1 : (j : Fin (suc n)) → CSType 0 0F → i ≤ j → CSType (suc n) (inject₁ i) → CSType n i
-
-  ssubst1 j s0 i≤j (xmt d t s) = xmt d (tsubst1 j s0 t) (ssubst1 j s0 z≤n s)
-  ssubst1 j s0 i≤j end = end
-  ssubst1 j s0 i≤j (rec s) = rec (ssubst1 (suc j) s0 (s≤s i≤j) s)
-  ssubst1 {0F} {0F} 0F s0 z≤n (var 0F z≤n) = s0
-  ssubst1 {suc n} {0F} 0F s0 z≤n (var 0F z≤n) = sweaken0 (suc n) s0
-  ssubst1 {suc n} {0F} 0F s0 z≤n (var (suc x) z≤n) = var x z≤n
-  ssubst1 {suc n} {0F} (suc j) s0 z≤n (var 0F z≤n) = var 0F z≤n
-  ssubst1 {suc n} {0F} (suc j) s0 z≤n (var (suc x) z≤n)
-    with sweaken0 1 (ssubst1 {n} {0F} j s0 z≤n (var x z≤n))
-  ... | ih rewrite n+0=n {n} = ih
-  ssubst1 {suc n} {suc i} (suc j) s0 (s≤s i≤j) (var (suc x) (s≤s i≤x))
-    with ssubst1 {n} {i} j s0 i≤j (var x i≤x)
-  ... | ih = let sw1 = sweaken'{n} 1 in {!sweaken'!}
-
-  tsubst1 j s0 t = {!!}
-
-  tsubst0 : Fin (suc n) → CSType 0 0F → CTType (suc n) → CTType n
-  ssubst0 : Fin (suc n) → CSType 0 0F → CSType (suc n) (inject₁ i) → CSType n i
-
-  ssubst0 j s0 (xmt d t s) = xmt d (tsubst0 j s0 t) (ssubst0 j s0 s)
-  ssubst0 j s0 end = end
-  ssubst0 j s0 (rec s) = rec (ssubst0 (suc j) s0 s)
-  ssubst0 {n} {0F} 0F s0 (var 0F z≤n) = sweaken0 n s0
-  ssubst0 {suc n} {0F} (suc j) s0 (var 0F z≤n) = var 0F z≤n
-  ssubst0 {n} {0F} 0F s0 (var (suc x) z≤n) = var x z≤n
-  ssubst0 {suc n} {0F} (suc j) s0 (var (suc x) z≤n) 
-    with sweaken0 1 (ssubst0 {n} {0F} j s0 (var x z≤n))
-  ... | ih rewrite n+0=n {n} = ih
-  ssubst0 {n} {suc i} j s0 (var 0F ())
-  ssubst0 {suc n} {suc i} 0F s0 (var (suc x) (s≤s i≤x)) = {!!} -- var x {!!}
-  ssubst0 {suc n} {suc i} (suc j) s0 (var (suc x) (s≤s i≤x)) = {!!}
-
-  tsubst0 j s0 TInt = TInt
-  tsubst0 j s0 (TChn s) = TChn (ssubst0 j s0 s)
-
-  ssubst' : Fin (suc n) → CSType 0 0F → CSType (suc n) (fromℕ (suc n)) → CSType n (fromℕ n)
-
-  ssubst' j s0 (xmt d t s) = xmt d (tsubst0 j s0 t) (ssubst0 j s0 s)
-  ssubst' j s0 end = end
-  ssubst' j s0 (rec s) = rec (ssubst' (suc j) s0 s)
-  ssubst' j s0 (var x i≤x) with impossible x i≤x
-  ssubst' j s0 (var x i≤x) | ()
-
-  ----------------------------------------------------------------------
-
-  sweaki : j ≤ i → CSType n i → CSType n j
-  sweaki i≤j (xmt d t s) = xmt d t s
-  sweaki i≤j (rec s) = rec (sweaki (s≤s i≤j) s)
-  sweaki i≤j (var x i≤j₁) = var x (≤-trans i≤j i≤j₁)
-  sweaki i≤j end = end
-
-  -- _+𝔽_ : (i : Fin (suc n)) (m : ℕ) → Fin (suc (n +ℕ m))
-  -- _+𝔽_ i 0F = i
-  -- _+𝔽_ i (suc m) = suc (_+𝔽_ i m)
-
-  -- liftadd-suc : (i : Fin (suc n)) (m : ℕ) → _+𝔽_ (suc i) m ≡ suc (_+𝔽_ i m)
-  -- liftadd-suc i 0F = refl
-  -- liftadd-suc i (suc m) = cong suc (liftadd-suc i m)
-
-  -- -- weakening
-  -- sweaken : ∀ m → CSType n i → CSType (n +ℕ m) (i +𝔽 m)
-  -- tweaken : ∀ m → CTType n → CTType (n +ℕ m)
-
-  -- sweaken m (xmt d t s) = xmt d (tweaken m t) (sweaki z≤n (sweaken m s))
-  -- sweaken {i = i} m (rec s) with sweaken m s
-  -- ... | sms rewrite liftadd-suc i m = rec sms
-  -- sweaken m (var x i≤x) = var (inject+ m x) {!!}
-  -- sweaken m end = end
-
-  -- tweaken m TInt = TInt
-  -- tweaken m (TChn s) = TChn (sweaki z≤n (sweaken m s))
-
-
-  _+𝔾_ : (i : Fin (suc n)) (j : Fin (suc m)) → Fin (suc (n +ℕ m))
-  _+𝔾_{n}{m} i 0F = inject+ m i
-  _+𝔾_{n}{suc m} i (suc j) with i +𝔾 j
-  ... | ij rewrite n+sucm=sucn+m n m = suc ij
-
-  suc-i+Gj : (i : Fin (suc n)) (j : Fin (suc m)) → suc (i +𝔾 j) ≡ suc i +𝔾 j
-  suc-i+Gj i 0F = refl
-  suc-i+Gj{n}{suc m} i (suc j) with suc-i+Gj i j
-  ... | sij rewrite n+sucm=sucn+m n m = cong suc sij
-
-  ij≤injmx : ∀ m → (i : Fin (suc n)) (j : Fin (suc m)) (x : Fin n) (i≤x : i ≤ inject₁ x)
-    → (i +𝔾 j) ≤ inject₁ (inject+ m x)
-  ij≤injmx m 0F j 0F z≤n = {!!}
-  ij≤injmx m 0F j (suc x) z≤n = {!!}
-  ij≤injmx m (suc i) j 0F ()
-  ij≤injmx m (suc i) j (suc x) (s≤s i≤x) 
-    rewrite sym (suc-i+Gj i j) = s≤s (ij≤injmx m i j x i≤x)
-
-  sweakeni : ∀ m (j : Fin (suc m)) → CSType n i → CSType (n +ℕ m) (i +𝔾 j)
-  tweakeni : ∀ m → CTType n → CTType (n +ℕ m)
-
-  sweakeni m j (xmt d t s) = xmt d (tweakeni m t) (sweakeni m 0F s)
-  sweakeni m j end = end
-  sweakeni{i = i} m j (rec s) with (sweakeni m j s)
-  ... | swi rewrite sym (suc-i+Gj i j) = rec swi
-  sweakeni m j (var x i≤x) = var (inject+ m x) (ij≤injmx m _ j x i≤x)
-
-  tweakeni m TInt = TInt
-  tweakeni m (TChn s) = TChn (sweakeni m 0F s)
-
-  sweakenn : ∀ m (j : Fin (suc (n +ℕ m))) → CSType n (fromℕ n) → CSType (n +ℕ m) j
-  sweakenn m j (xmt d t s) = xmt d {!!} (sweakenn m 0F {!!})
-  sweakenn m j end = {!!}
-  sweakenn m j (rec s) = {!!}
-  sweakenn m j (var x i≤x) = {!!}
-
-  ssubst : Fin (suc n) → CSType 0 0F → CSType (suc n) (inject₁ i) → CSType n i
-  tsubst : Fin (suc n) → CSType 0 0F → CTType (suc n) → CTType n
-
-  ssubst j s₀ (xmt d t s) = xmt d (tsubst j s₀ t) (ssubst j s₀ s)
-  ssubst j s₀ end = end
-  ssubst j s₀ (rec s) = rec (ssubst (suc j) s₀ s)
-  ssubst {n} 0F s₀ (var 0F i≤x) = {!sweak!}
-  ssubst {n} 0F s₀ (var (suc x) i≤x) = {!!}
-  ssubst {n} (suc j) s₀ (var 0F i≤x) = {!!}
-  ssubst {n} (suc j) s₀ (var (suc x) i≤x) = {!!}
-
-  tsubst j s₀ TInt = TInt
-  tsubst j s₀ (TChn s) = TChn (ssubst j s₀ s)
-
-
-  unfold : (s : CSType n i) (σ : CSType n i → CSType 0 0F) → CSType 0 0F
-  unfold (xmt d t s) σ = σ (xmt d t s)
-  unfold (rec s) σ = unfold s (σ ∘ {!ssubst!})
-  unfold {i = 0F} (var j z≤n) σ = σ (var j z≤n)
-  unfold {i = suc i} (var 0F ()) σ
-  unfold {i = suc i} (var (suc j) (s≤s i≤j)) σ = unfold (var j i≤j) {!!}
-  unfold end σ = end
-
 ----------------------------------------------------------------------
 -- auxiliaries for automatic rewriting
 
@@ -270,40 +53,77 @@ module Experimental where
 
 {-# REWRITE n+0=n #-}
 
-inject+0-x=x : {x : Fin m} → inject+ 0 x ≡ x
-inject+0-x=x {x = zero} = refl
-inject+0-x=x {x = suc x} = cong suc inject+0-x=x
+-- inject+0-x=x : {x : Fin m} → inject+ 0 x ≡ x
+-- inject+0-x=x {x = zero} = refl
+-- inject+0-x=x {x = suc x} = cong suc inject+0-x=x
 
-{-# REWRITE inject+0-x=x #-}
+{- REWRITE inject+0-x=x #-}
 
 ----------------------------------------------------------------------
+-- types and session types
 
 data TType (n : ℕ) : Set 
 data SType (n : ℕ) : Set
 
 data TType n where
   TInt : TType n
-  TChn : (s : SType n) → TType n
+  TChn : (S : SType n) → TType n
 
 data SType n where
-  xmt : (d : Dir) (t : TType n) (s : SType n) → SType n
-  rec : SType (suc n) → SType n
-  var : Fin n → SType n
+  xmt : (d : Dir) (T : TType n) (S : SType n) → SType n
   end : SType n
+  rec : (S : SType (suc n)) → SType n
+  var : (x : Fin n) → SType n
 
 variable
-  t : TType n
-  s s₀ : SType n
+  t T : TType n
+  s s₀ S S₀ : SType n
+
+----------------------------------------------------------------------
+module Examples-Types where
+  sint : SType n → SType n
+  sint = xmt SND TInt
+
+  -- μ X. !Int. X
+  s1 : SType 0
+  s1 = rec (sint (var 0F))
+
+  -- μ X. μ Y. !Int. Y
+  s2 : SType 0
+  s2 = rec (rec (sint (var 0F)))
+
+  -- μ X. μ Y. !Int. X
+  s2a : SType 0
+  s2a = rec (rec (sint (var 1F)))
+
+  -- μ X. !Int. μ Y. X
+  s3 : SType 0
+  s3 = rec (sint (rec (var 1F)))
 
 ----------------------------------------------------------------------
 -- weakening
+
+increase : ∀ m → (x : Fin n) → Fin (n +ℕ m)
+increase 0F x = x
+increase (suc m) x = suc (increase m x)
+
+increaseS : ∀ m → SType n → SType (n +ℕ m)
+increaseT : ∀ m → TType n → TType (n +ℕ m)
+
+increaseS m (xmt d t s) = xmt d (increaseT m t) (increaseS m s)
+increaseS m (rec s) = rec (increaseS m s)
+increaseS m (var x) = var (inject+ m x)
+increaseS m end = end
+
+increaseT m TInt = TInt
+increaseT m (TChn s) = TChn (increaseS m s)
 
 weakenS : ∀ m → SType n → SType (n +ℕ m)
 weakenT : ∀ m → TType n → TType (n +ℕ m)
 
 weakenS m (xmt d t s) = xmt d (weakenT m t) (weakenS m s)
 weakenS m (rec s) = rec (weakenS m s)
-weakenS m (var x) = var (inject+ m x)
+weakenS m (var x) = var (increase m x)
 weakenS m end = end
 
 weakenT m TInt = TInt
@@ -320,10 +140,10 @@ tsubst : TType (suc n) → Fin (suc n) → SType 0 → TType n
 
 ssubst (xmt d t s) i s0 = xmt d (tsubst t i s0) (ssubst s i s0)
 ssubst (rec s) i s0 = rec (ssubst s (suc i) s0)
-ssubst {n} (var 0F) 0F s0 = weakenS n s0
+ssubst {n} (var 0F) 0F s0 = increaseS n s0
 ssubst {suc n} (var 0F) (suc i) s0 = var 0F
 ssubst (var (suc x)) 0F s0 = var x
-ssubst {suc n} (var (suc x)) (suc i) s0 = weaken1S (ssubst (var x) i s0)
+ssubst {suc n} (var (suc x)) (suc i) s0 = increaseS 1 (ssubst (var x) i s0)
 ssubst end i s0 = end
 
 tsubst TInt i s₀ = TInt
@@ -335,15 +155,18 @@ tsubst (TChn s) i s₀ = TChn (ssubst s i s₀)
 mutual
   data ContractiveT : TType n → Set where
     con-int : ContractiveT{n} TInt
-    con-chn : Contractive 0F s → ContractiveT (TChn s)
+    con-chn : Contractive 0F S → ContractiveT (TChn S)
 
-  data Contractive : Fin (suc n) → SType n → Set where
-    con-rec : Contractive (suc i) s → Contractive i (rec s)
+  data Contractive (i : Fin (suc n)) : SType n → Set where
     con-xmt : ContractiveT t → Contractive 0F s → Contractive i (xmt d t s)
-    con-var : i ≤ inject₁ j → Contractive i (var j)
     con-end : Contractive i end
+    con-rec : Contractive (suc i) S → Contractive i (rec S)
+    con-var : i ≤ inject₁ j → Contractive i (var j)
 
-module Examples where
+----------------------------------------------------------------------
+module Examples-Contractivity where
+  open Examples-Types
+  
   cn1 : ¬ Contractive {2} 1F (var 0F)
   cn1 (con-var ())
 
@@ -353,8 +176,17 @@ module Examples where
   cp0 : Contractive {2} 0F (var 0F)
   cp0 = con-var z≤n
 
+  cs1 : Contractive 0F s1
+  cs1 = con-rec (con-xmt con-int (con-var z≤n))
+
+  cs2 : Contractive 0F s2
+  cs2 = con-rec (con-rec (con-xmt con-int (con-var z≤n)))
+
+  cs2a : Contractive 0F s2a
+  cs2a = con-rec (con-rec (con-xmt con-int (con-var z≤n)))
+
   sp2 : SType 0
-  sp2 = (rec (xmt SND TInt (rec (var 1F))))
+  sp2 = s3
 
   cp2 : Contractive 0F sp2
   cp2 = con-rec (con-xmt con-int (con-rec (con-var (s≤s z≤n))))
@@ -365,34 +197,47 @@ module Examples where
   cn2 : ¬ Contractive 0F sn2
   cn2 (con-rec (con-xmt con-int (con-rec (con-var ()))))
 
+----------------------------------------------------------------------
+-- unfolding to first non-rec constructor
+
 unfold : (s : SType n) (c : Contractive i s) (σ : SType n → SType 0) → SType 0
 unfold (xmt d t s) (con-xmt ct c) σ = σ (xmt d t s)
 unfold end con-end σ = end
 unfold (rec s) (con-rec c) σ = unfold s c (σ ∘ λ sn' → ssubst sn' 0F (σ (rec s))) 
 unfold {i = 0F} (var x) (con-var z≤n) σ = σ (var x)
 unfold {i = suc i} (var 0F) (con-var ()) σ
-unfold {i = suc i} (var (suc x)) (con-var (s≤s x₁)) σ = unfold (var x) (con-var x₁) (σ ∘ weaken1S)
+unfold {i = suc i} (var (suc x)) (con-var (s≤s x₁)) σ = unfold (var x) (con-var x₁) (σ ∘ increaseS 1)
 
-module CheckUnfold where
-  s1 : SType 0
-  s1 = rec (xmt SND TInt (var 0F))
+unfold₀ : (S : SType 0) (c : Contractive 0F S) → SType 0
+unfold₀ S c = unfold S c id
+
+----------------------------------------------------------------------
+module Examples-Unfold where
+  open Examples-Types
+
   c1 : Contractive 0F s1
   c1 = con-rec (con-xmt con-int (con-var z≤n))
-  s2 : SType 0
-  s2 = xmt SND TInt s1
+  s11 : SType 0
+  s11 = xmt SND TInt s1
 
-  u-s1=s2 : unfold s1 c1 id ≡ s2
-  u-s1=s2 = refl
+  u-s1=s11 : unfold s1 c1 id ≡ s11
+  u-s1=s11 = refl
 
-  s3 : SType 0
-  s3 = rec (rec (xmt SND TInt (var 0F)))
-  c3 : Contractive 0F s3
-  c3 = con-rec (con-rec (con-xmt con-int (con-var z≤n)))
-  u-s3=s2 : unfold s3 c3 id ≡ s2
-  u-s3=s2 = refl
+  c2 : Contractive 0F s2
+  c2 = con-rec (con-rec (con-xmt con-int (con-var z≤n)))
+  u-s2=s11 : unfold s2 c2 id ≡ s11
+  u-s2=s11 = cong (xmt SND TInt) (cong rec (cong (xmt SND TInt) refl))
+----------------------------------------------------------------------
+-- contractivity is decidable
 
 infer-contractiveT : (t : TType n) → Dec (ContractiveT t)
 infer-contractive : (s : SType n) (i : Fin (suc n)) → Dec (Contractive i s)
+
+infer-contractiveT TInt = yes con-int
+infer-contractiveT (TChn s)
+  with infer-contractive s 0F
+infer-contractiveT (TChn s) | yes p = yes (con-chn p)
+infer-contractiveT (TChn s) | no ¬p = no (λ { (con-chn cs) → ¬p cs })
 
 infer-contractive (xmt d t s) i 
   with infer-contractiveT t | infer-contractive s 0F
@@ -412,35 +257,175 @@ infer-contractive (var (suc x)) (suc i)
 infer-contractive (var (suc x)) (suc i) | yes (con-var x₁) = yes (con-var (s≤s x₁))
 infer-contractive (var (suc x)) (suc i) | no ¬p = no (λ { (con-var (s≤s y)) → ¬p (con-var y) })
 
-infer-contractiveT TInt = yes con-int
-infer-contractiveT (TChn s)
-  with infer-contractive s 0F
-infer-contractiveT (TChn s) | yes p = yes (con-chn p)
-infer-contractiveT (TChn s) | no ¬p = no (λ { (con-chn cs) → ¬p cs })
-
-module ExamplesInference where
-  open Examples
+----------------------------------------------------------------------
+module Examples-Inference where
+  open Examples-Contractivity
   
   infer-p2 : infer-contractive sp2 0F ≡ yes cp2
   infer-p2 = refl
 
-  -- infer-n2 : infer-contractive sn2 0F ≡ no cn2
-  -- how?
-
-
-SType' : ℕ → Set
-SType' n = Σ (SType n) (λ s → ∃ λ i → Contractive i s)
-
-unfold' : SType' n → (SType n → SType 0) → SType' 0
-unfold' (xmt d t s , i , c) σ = σ (xmt d t s) , 0F , {!!}
-unfold' (rec s , snd) σ
-  with unfold' (s , {!!}) {!!}
-... | usc = {!!}
-unfold' (var x , snd) σ = (σ (var x)) , 0F , {!!}
-unfold' (end , i , con-end) σ = end , 0F , con-end
+  infer-n2 : infer-contractive sn2 0F ≡ no cn2
+  infer-n2 = cong no (ext (λ { (con-rec (con-xmt con-int (con-rec (con-var ())))) }))
 
 ----------------------------------------------------------------------
--- equivalence
+-- RT: if a type is contractive at level i, then it is also contractive at any smaller level
+
+c-weakenS : {S : SType n} (i' : Fin′ i) → Contractive i S → Contractive (inject i') S
+c-weakenS i' (con-rec cis) = con-rec (c-weakenS (suc i') cis)
+c-weakenS i' (con-xmt x cis) = con-xmt x cis
+c-weakenS i' con-end = con-end
+c-weakenS {i = suc i} i' (con-var {0F} ())
+c-weakenS {i = suc i} 0F (con-var {suc n} (s≤s x)) = con-var z≤n
+c-weakenS {i = suc i} (suc i') (con-var {suc n} (s≤s x)) = con-var (s≤s (trans-< x))
+
+c-weakenS₁ : {S : SType n} → Contractive (suc i) S → Contractive (inject₁ i) S
+c-weakenS₁ (con-rec cis) = con-rec (c-weakenS₁ cis)
+c-weakenS₁ (con-xmt x cis) = con-xmt x cis
+c-weakenS₁ con-end = con-end
+c-weakenS₁ {0F} {()} (con-var x)
+c-weakenS₁ {suc n} {0F} (con-var x) = con-var z≤n
+c-weakenS₁ {suc n} {suc i} (con-var x) = con-var (pred-≤ x)
+
+c-weakenS! : {S : SType n} → Contractive i S → Contractive 0F S
+c-weakenS! {i = 0F} (con-rec cis) = con-rec cis
+c-weakenS! {i = suc i} (con-rec cis) = con-rec (c-weakenS 1F cis)
+c-weakenS! {n} {i} (con-xmt x cis) = con-xmt x cis
+c-weakenS! {n} {i} con-end = con-end
+c-weakenS! {n} {i} (con-var x) = con-var z≤n
+
+----------------------------------------------------------------------
+-- single substitution of j ↦ Sj
+
+subst1T : (T : TType (suc n)) (j : Fin (suc n)) (Sj : SType n) → TType n
+subst1S : (S : SType (suc n)) (j : Fin (suc n)) (Sj : SType n) → SType n
+
+subst1T TInt j Sj = TInt
+subst1T (TChn S) j Sj = TChn (subst1S S j Sj)
+
+subst1S (xmt d T S) j Sj = xmt d (subst1T T j Sj) (subst1S S j Sj)
+subst1S end j Sj = end
+subst1S (rec S) j Sj = rec (subst1S S (suc j) (weaken1S Sj))
+subst1S (var x) j Sj
+  with compare x j
+subst1S (var .(inject least)) j Sj | less .j least = var (inject! least)
+subst1S (var x) .x Sj | equal .x = Sj
+subst1S (var (suc x)) .(inject least) Sj | greater .(suc x) least = var x
+
+{- the termination checker doesnt like this:
+subst1S (var 0F) 0F Sj = Sj
+subst1S {suc n} (var 0F) (suc j) Sj = var 0F 
+subst1S (var (suc x)) 0F Sj = var x
+subst1S (var (suc x)) (suc j) Sj = subst1S (var (inject₁ x)) (inject₁ j) Sj
+-}
+
+unfold1S : (S : SType 0) → SType 0
+unfold1S (xmt d T S) = xmt d T S
+unfold1S end = end
+unfold1S (rec S) = subst1S S 0F (rec S)
+
+unfoldSS : (S : SType n) → SType n
+unfoldSS (xmt d T S) = xmt d T S
+unfoldSS end = end
+unfoldSS (rec S)
+  with unfoldSS S
+... | ih = subst1S ih 0F (rec ih)
+unfoldSS (var x) = var x
+
+----------------------------------------------------------------------
+-- max index substitution
+
+subst-maxT : (Sm : SType n) (T : TType (suc n)) → TType n
+subst-maxS : (Sm : SType n) (S : SType (suc n)) → SType n
+
+subst-maxT Sm TInt = TInt
+subst-maxT Sm (TChn S) = TChn (subst-maxS Sm S)
+
+subst-maxS Sm (xmt d T S) = xmt d (subst-maxT Sm T) (subst-maxS Sm S)
+subst-maxS Sm end = end
+subst-maxS Sm (rec S) = rec (subst-maxS (weaken1S Sm) S)
+subst-maxS Sm (var x)
+  with max? x
+subst-maxS Sm (var x) | yes p = Sm
+subst-maxS Sm (var x) | no ¬p = var (reduce ¬p)
+
+
+unfoldmS : (S : SType 0) → SType 0
+unfoldmS (xmt d T S) = xmt d T S
+unfoldmS end = end
+unfoldmS (rec S) = subst-maxS (rec S) S
+
+----------------------------------------------------------------------
+-- max substitution preserves contractivity
+
+contr-weakenT : ContractiveT T → ContractiveT (weakenT 1 T)
+contr-weakenS : Contractive i S → Contractive (suc i) (weaken1S S)
+
+contr-weakenT con-int = con-int
+contr-weakenT (con-chn x) = con-chn (c-weakenS! (contr-weakenS x))
+
+contr-weakenS (con-xmt x cs) = con-xmt (contr-weakenT x) (c-weakenS! (contr-weakenS cs))
+contr-weakenS con-end = con-end
+contr-weakenS (con-rec cs) = con-rec (contr-weakenS cs)
+contr-weakenS {n}{i} {S = var j} (con-var x) = con-var (s≤s x)
+
+
+subst-contr-mT : 
+  {T : TType (suc n)} (c : ContractiveT T)
+  {S' : SType n} (c' : Contractive i S')
+    → ContractiveT (subst-maxT S' T)
+
+subst-contr-mS :
+  -- {i : Fin (suc (suc n))}
+  {S : SType (suc n)} (c : Contractive (inject₁ i) S)
+  {S' : SType n} (c' : Contractive i S')
+    → Contractive i (subst-maxS S' S)
+
+subst-contr-mT con-int csm = con-int
+subst-contr-mT (con-chn x) csm = con-chn (c-weakenS! (subst-contr-mS x (c-weakenS! csm)))
+
+subst-contr-mS (con-xmt x cs) csm = con-xmt (subst-contr-mT x csm) (subst-contr-mS cs (c-weakenS! csm))
+subst-contr-mS con-end csm = con-end
+subst-contr-mS (con-rec cs) csm = con-rec (subst-contr-mS cs (contr-weakenS csm))
+subst-contr-mS {S = var j} (con-var x) csm
+  with max? j
+subst-contr-mS {i = _} {var j} (con-var x) csm | yes p = csm
+subst-contr-mS {i = _} {var j} (con-var x) csm | no ¬p = con-var (lemma-reduce x ¬p)
+
+-- one step unfolding preserves contractivity
+
+unfold-contr : Contractive i S → Contractive i (unfoldmS S)
+unfold-contr (con-xmt x c) = con-xmt x c
+unfold-contr con-end = con-end
+unfold-contr (con-rec c) = subst-contr-mS (c-weakenS₁ c) (con-rec c)
+
+-- multiple unfolding 
+
+unfold! : (S : SType n) (σ : SType n → SType 0) → SType 0
+unfold! (xmt d T S) σ = σ (xmt d T S)
+unfold! end σ = end
+unfold! (rec S) σ = unfold! S (σ ∘ subst-maxS (rec S))
+unfold! (var x) σ = σ (var x)
+
+unfold!-contr : Contractive i S → Contractive i (unfold! S id)
+unfold!-contr (con-xmt x cs) = con-xmt x cs
+unfold!-contr con-end = con-end
+unfold!-contr (con-rec cs) = {!!}
+
+-- multiple unfolding preserves contractivity
+
+SCType : (n : ℕ) → Fin (suc n) → Set
+SCType n i = Σ (SType n) (Contractive i)
+
+unfold!! : (SC : SCType n i) → (SCType n i → SCType 0 0F) → SCType 0 0F
+unfold!! SC@(xmt d T S , con-xmt x cs) σ = σ SC
+unfold!! (end , con-end) σ = end , con-end
+unfold!! (rec S , con-rec cs) σ =
+  unfold!! (S , cs) (σ ∘ λ{ (S' , c') → (subst-maxS (rec S) S') , (subst-contr-mS (c-weakenS₁ c') (con-rec cs)) })
+unfold!! SC@(var x , con-var x₁) σ = σ SC
+
+----------------------------------------------------------------------
+-- equivalence requires multiple unfolding
+
 variable
   t₁ t₂ t₁' t₂' : TType n
   s₁ s₂ : SType n
