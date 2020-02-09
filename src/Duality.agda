@@ -262,16 +262,16 @@ module IND where
   mutual
     data Type (n : ℕ) : Set where
       TUnit TInt : Type n
-      TPair : Type n → Type n → Type n
-      TChan : SType n → Type n
+      TPair : (T₁ : Type n) (T₂ : Type n) → Type n
+      TChan : (S : SType n) → Type n
     
     data SType (n : ℕ) : Set where
-      gdd : (gst : GType n) → SType n
-      rec : (gst : GType (suc n) ) → SType n
+      gdd : (G : GType n) → SType n
+      rec : (G : GType (suc n) ) → SType n
       var : (p : Polarity) → (x : Fin n) → SType n
 
     data GType (n : ℕ) : Set where
-      transmit : (d : Dir) (t : Type n) (s : SType n) → GType n
+      transmit : (d : Dir) (T : Type n) (S : SType n) → GType n
       choice : (d : Dir) (m : ℕ) (alt : Fin m → SType n) → GType n
       end : GType n
     
