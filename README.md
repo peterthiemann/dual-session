@@ -1,6 +1,7 @@
 # dual-session
 Exploration of session type duality
 
-* coinductive definition
-* definition of Lindley and Morris
-* naive tail recursive definition
+* coinductive definition (functional and relational)
+* inductive definition of Lindley and Morris (equivalence to
+  coinductive definition)
+* naive tail recursive definition (equivalence to coinductive definition)
