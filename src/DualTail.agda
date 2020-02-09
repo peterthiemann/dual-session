@@ -120,3 +120,7 @@ dual-tailG σ (transmit d t s) = COI.eq-transmit (dual-dir d) COI.≈ᵗ-refl (d
 dual-tailG σ (choice d m alt) = COI.eq-choice (dual-dir d) (dual-tailS σ ∘ alt)
 dual-tailG σ end = COI.eq-end
 
+-- corrolary for SType 0
+
+dual-tail : ∀ s → COI.dual (tail2coiS ε s) ≈ tail2coiS ε (dualS s)
+dual-tail = dual-tailS ε
