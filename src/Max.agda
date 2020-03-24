@@ -59,15 +59,15 @@ reduce₁ {m = suc m₁} {suc x₁} ¬p₁ (s≤s q₁) =
 
 -- Injection is compatible with ordering.
 inject-≤ : {i j : Fin n} → inject₁ i ≤ inject₁ j → i ≤ j
-inject-≤ {i = 0F} {0F} z≤n = z≤n
-inject-≤ {i = 0F} {suc j} z≤n = z≤n
-inject-≤ {i = suc i} {0F} ()
+inject-≤ {i = zero} {zero} z≤n = z≤n
+inject-≤ {i = zero} {suc j} z≤n = z≤n
+inject-≤ {i = suc i} {zero} ()
 inject-≤ {i = suc i} {suc j} (s≤s ii≤ij) = s≤s (inject-≤ ii≤ij)
 
 -- Technical lemma about reduce.
 lemma-reduce : {i j : Fin (suc n)} →
   (i≤j : inject₁ i ≤ inject₁ j) → (¬p  : ¬ Max j) → i ≤ inject₁ (reduce ¬p)
-lemma-reduce {i = 0F} i≤j ¬p = z≤n
+lemma-reduce {i = zero} i≤j ¬p = z≤n
 lemma-reduce {i = suc i} {suc j} (s≤s i≤j) ¬p = reduce₁ ¬p (inject-≤ i≤j)
 
 -- A lemma on ≤: if x ≤ y, then x ≤ suc y.
