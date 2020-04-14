@@ -13,6 +13,10 @@ open import Extensionality
 
 open import Auxiliary
 
+private
+  variable
+    m n : ℕ
+
 ----------------------------------------------------------------------
 -- session type inductively with explicit rec
 

@@ -9,8 +9,9 @@ open import Relation.Binary.PropositionalEquality hiding (Extensionality)
 
 open import Agda.Builtin.Equality.Rewrite
 
-variable
-  m n : ℕ
+private
+  variable
+    m n : ℕ
 
 ----------------------------------------------------------------------
 -- auxiliaries for automatic rewriting

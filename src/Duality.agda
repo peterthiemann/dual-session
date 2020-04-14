@@ -23,12 +23,12 @@ variable
 
 open import Types.Direction
 
-open import Auxiliary hiding (m ; n)
+open import Auxiliary
 
 ----------------------------------------------------------------------
 -- session types coinductively
 
-import Types.COI as COI hiding (m ; n)
+import Types.COI as COI
 
 ----------------------------------------------------------------------
 -- session type inductively with explicit rec

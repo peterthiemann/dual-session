@@ -9,8 +9,9 @@ open import Relation.Binary.PropositionalEquality hiding (Extensionality)
 
 open import Types.Direction
 
-variable
-  m n : ℕ
+private
+  variable
+    m n : ℕ
 
 --------------------------------------------------------------------
 -- session types coinductively
@@ -33,10 +34,11 @@ mutual
 
 open SType
 
-variable
-  t t₁ t₂ t₃ t₁' t₂' t₃' : Type
-  s s₁ s₂ s₃ : SType
-  s' s₁' s₂' s₃' : STypeF SType
+private
+  variable
+    t t₁ t₂ t₃ t₁' t₂' t₃' : Type
+    s s₁ s₂ s₃ : SType
+    s' s₁' s₂' s₃' : STypeF SType
 
 -- type equivalence
 data EquivT (R : SType → SType → Set) : Type → Type → Set where
