@@ -1,17 +1,19 @@
 module DualTail where
 
 open import Data.Nat
-open import Data.Fin hiding (_+_)
+open import Data.Fin using (Fin; zero; suc)
 open import Data.Product
-open import Data.Vec hiding (map)
 
-open import Function
+open import Function using (id; _∘_)
 
-open import Relation.Binary.PropositionalEquality hiding (Extensionality)
+open import Relation.Binary.PropositionalEquality using (_≡_; refl)
 
-open import Duality
 open import Types.Direction
 open import Extensionality
+
+private
+  variable
+    n : ℕ
 
 -- session types restricted to tail recursion
 -- can be recognized by type of TChan constructor
