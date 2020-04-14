@@ -14,8 +14,6 @@ open import Relation.Binary.PropositionalEquality hiding (Extensionality)
 
 open import Agda.Builtin.Equality.Rewrite
 
-open import Extensionality
-
 -- variables
 
 variable
@@ -23,7 +21,8 @@ variable
 
 open import Types.Direction
 
-open import Auxiliary
+open import Auxiliary.Extensionality
+open import Auxiliary.RewriteLemmas
 
 ----------------------------------------------------------------------
 -- session types coinductively

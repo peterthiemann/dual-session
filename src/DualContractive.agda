@@ -15,7 +15,7 @@ open import Function
 
 open import Types.Direction
 
-open import Extensionality
+open import Auxiliary.Extensionality
 
 open import Max hiding (n)
 

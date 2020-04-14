@@ -9,9 +9,9 @@ open import Function
 open import Relation.Binary.PropositionalEquality hiding (Extensionality)
 
 open import Types.Direction
-open import Extensionality
+open import Auxiliary.Extensionality
 
-open import Auxiliary
+open import Auxiliary.RewriteLemmas
 
 private
   variable

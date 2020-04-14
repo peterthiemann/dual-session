@@ -10,7 +10,6 @@ open import Relation.Binary.PropositionalEquality using (_≡_; refl)
 
 open import Duality using (ind2coiS)
 open import Types.Direction
-open import Extensionality
 
 import Types.IND as IND
 import Types.COI as COI

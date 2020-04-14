@@ -1,5 +1,5 @@
 {-# OPTIONS --rewriting #-}
-module Auxiliary where
+module Auxiliary.RewriteLemmas where
 
 open import Data.Nat
 open import Data.Fin hiding (_+_ ; _<_ ; _≤_)

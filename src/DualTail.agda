@@ -9,7 +9,6 @@ open import Function using (id; _∘_)
 open import Relation.Binary.PropositionalEquality using (_≡_; refl)
 
 open import Types.Direction
-open import Extensionality
 
 private
   variable
