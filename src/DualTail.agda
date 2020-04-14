@@ -65,18 +65,20 @@ dual-stack ⟪ σ , g ⟫ = ⟪ dual-stack σ , dualG g ⟫
 -- technically m = n - i, but we don't need to know
 
 get : (i : Fin n) → Stack n → Σ ℕ λ m → Stack m × GType (suc m)
-get 0F ⟪ σ , x ⟫ = _ , (σ , x)
+get zero ⟪ σ , x ⟫ = _ , (σ , x)
 get (suc i) ⟪ σ , x ⟫ = get i σ
 
 -- relate a stack entry to the corresponding entry on the dual stack
 
 get-dual-stack : (x : Fin n) (σ : Stack n) →
   get x (dual-stack σ) ≡ map id (map dual-stack dualG) (get x σ)
-get-dual-stack 0F ⟪ σ , x ⟫ = refl
+get-dual-stack zero ⟪ σ , x ⟫ = refl
 get-dual-stack (suc x) ⟪ σ , x₁ ⟫ = get-dual-stack x σ
 
 -- mapping tail recursive session types to coinductive session types
 -- relies on a stack to unfold variables on the fly
+
+import Types.COI as COI
 
 tail2coiT : Type → COI.Type
 tail2coiS : Stack n → SType n → COI.SType
