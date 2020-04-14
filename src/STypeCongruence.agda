@@ -4,7 +4,7 @@ open import Data.Fin
 
 open import Duality
 
-open import Direction
+open import Types.Direction
 
 open COI
 

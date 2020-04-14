@@ -13,7 +13,7 @@ open import Relation.Binary.PropositionalEquality hiding (Extensionality)
 
 open import Function
 
-open import Direction
+open import Types.Direction
 
 open import Extensionality
 

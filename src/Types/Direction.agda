@@ -1,4 +1,4 @@
-module Direction where
+module Types.Direction where
 
 open import Relation.Binary.PropositionalEquality hiding (Extensionality)
 

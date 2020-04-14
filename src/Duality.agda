@@ -21,7 +21,7 @@ open import Extensionality
 variable
   n m : ℕ
 
-open import Direction
+open import Types.Direction
 
 open import Auxiliary hiding (m ; n)
 

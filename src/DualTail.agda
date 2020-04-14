@@ -10,7 +10,7 @@ open import Function
 open import Relation.Binary.PropositionalEquality hiding (Extensionality)
 
 open import Duality
-open import Direction
+open import Types.Direction
 open import Extensionality
 
 -- session types restricted to tail recursion
