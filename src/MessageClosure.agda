@@ -4,10 +4,12 @@ open import Data.Fin using (Fin; zero; suc; toℕ)
 open import Data.Nat
 open import Function
 
-open import Duality
-
 open import Types.IND
 import Types.Tail1 as Tail
+
+private
+  variable
+    m n : ℕ
 
 -- message closure guarantees that the type of each message in a session type is closed
 
@@ -71,3 +73,9 @@ mcloS σ (var p x) = Tail.var x
 mcloG σ (transmit d t s) = Tail.transmit d (injectT (applyT σ t)) (mcloS σ s)
 mcloG σ (choice d m alt) = Tail.choice d m (mcloS σ ∘ alt)
 mcloG σ end = Tail.end
+
+mclosureS : SType 0 → Tail.SType 0
+mclosureS = mcloS λ()
+
+mclosureG : GType 0 → Tail.GType 0
+mclosureG = mcloG λ()
