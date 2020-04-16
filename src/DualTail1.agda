@@ -8,16 +8,32 @@ open import Function using (id; _∘_)
 
 open import Relation.Binary.PropositionalEquality using (_≡_; refl)
 
-open import Duality using (ind2coiS)
 open import Types.Direction
 
-import Types.IND as IND
+open import Types.IND1 as IND hiding (GType; Type; SType; _≈_; _≈'_)
 import Types.COI as COI
 open import Types.Tail1
 
 private
   variable
     n : ℕ
+
+----------------------------------------------------------------------
+ind2coiT : IND.Type 0 → COI.Type
+ind2coiS : IND.SType 0 → COI.SType
+ind2coiG : IND.GType 0 → COI.STypeF COI.SType
+
+ind2coiT TUnit = COI.TUnit
+ind2coiT TInt = COI.TInt
+ind2coiT (TPair it it₁) = COI.TPair (ind2coiT it) (ind2coiT it₁)
+ind2coiT (TChan st) = COI.TChan (ind2coiS st)
+
+ind2coiG (transmit d t ist) = COI.transmit d (ind2coiT t) (ind2coiS ist)
+ind2coiG (choice d m alt) = COI.choice d m (ind2coiS ∘ alt)
+ind2coiG end = COI.end
+
+COI.SType.force (ind2coiS (gdd G)) = ind2coiG G
+COI.SType.force (ind2coiS (rec G)) = ind2coiG (st-substG G zero (rec G))
 
 -- instead of unrolling and substituting, we maintain a stack of bodies of recursive types
 
