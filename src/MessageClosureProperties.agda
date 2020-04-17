@@ -47,11 +47,11 @@ apply-id-T (IND.TPair T T₁) = cong₂ IND.TPair (apply-id-T T) (apply-id-T T�
 apply-id-T (IND.TChan S) = cong IND.TChan (apply-id-S S)
 
 mc-equiv-S : (s : IND.SType 0)
-  → DT.ind2coiS s ≈ DT.tail2coiS ε (MC.mclosureS s)
+  → DT.ind2coiS ε s ≈ DT.tail2coiS ε (MC.mclosureS s)
 mc-equiv-G : (g : IND.GType 0)
-  → DT.ind2coiG g ≈' DT.tail2coiG ε (MC.mclosureG g)
+  → DT.ind2coiG ε g ≈' DT.tail2coiG ε (MC.mclosureG g)
 mc-equiv-T : (t : IND.TType 0)
-  → (DT.ind2coiT t) ≈ᵗ DT.tail2coiT (MC.injectT (MC.applyT IND.var t))
+  → DT.ind2coiT ε t ≈ᵗ DT.tail2coiT (MC.injectT (MC.applyT IND.var t))
 
 COI.Equiv.force (mc-equiv-S (IND.gdd g)) = mc-equiv-G g
 COI.Equiv.force (mc-equiv-S (IND.rec G)) = {!!}

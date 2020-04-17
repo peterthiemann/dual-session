@@ -18,41 +18,24 @@ private
   variable
     n : ℕ
 
-----------------------------------------------------------------------
-ind2coiT : IND.Type 0 → COI.Type
-ind2coiS : IND.SType 0 → COI.SType
-ind2coiG : IND.GType 0 → COI.STypeF COI.SType
-
-ind2coiT TUnit = COI.TUnit
-ind2coiT TInt = COI.TInt
-ind2coiT (TPair it it₁) = COI.TPair (ind2coiT it) (ind2coiT it₁)
-ind2coiT (TChan st) = COI.TChan (ind2coiS st)
-
-ind2coiG (transmit d t ist) = COI.transmit d (ind2coiT t) (ind2coiS ist)
-ind2coiG (choice d m alt) = COI.choice d m (ind2coiS ∘ alt)
-ind2coiG end = COI.end
-
-COI.SType.force (ind2coiS (gdd G)) = ind2coiG G
-COI.SType.force (ind2coiS (rec G)) = ind2coiG (st-substG G zero (rec G))
-
 -- instead of unrolling and substituting, we maintain a stack of bodies of recursive types
 
-data Stack : ℕ → Set where
+data Stack {GType : ℕ → Set} : ℕ → Set where
   ε : Stack 0
-  ⟪_,_⟫ : Stack n → GType (suc n) → Stack (suc n)
-
--- the dual of a stack
-
-dual-stack : Stack n → Stack n
-dual-stack ε = ε
-dual-stack ⟪ σ , g ⟫ = ⟪ dual-stack σ , dualG g ⟫
+  ⟪_,_⟫ : Stack {GType} n → GType (suc n) → Stack (suc n)
 
 -- obtain an entry from the stack
 -- technically m = n - i, but we don't need to know
 
-get : (i : Fin n) → Stack n → Σ ℕ λ m → Stack m × GType (suc m)
+get : ∀ {GType} (i : Fin n) → Stack {GType} n → Σ ℕ λ m → Stack {GType} m × GType (suc m)
 get zero ⟪ σ , x ⟫ = _ , (σ , x)
 get (suc i) ⟪ σ , x ⟫ = get i σ
+
+-- the dual of a stack
+
+dual-stack : Stack {GType} n → Stack  {GType} n
+dual-stack ε = ε
+dual-stack ⟪ σ , g ⟫ = ⟪ dual-stack σ , dualG g ⟫
 
 -- relate a stack entry to the corresponding entry on the dual stack
 
@@ -61,17 +44,38 @@ get-dual-stack : (x : Fin n) (σ : Stack n) →
 get-dual-stack zero ⟪ σ , x ⟫ = refl
 get-dual-stack (suc x) ⟪ σ , x₁ ⟫ = get-dual-stack x σ
 
+-- stacked version of general mapping of inductive session type to COI
+
+ind2coiS : Stack {IND.GType} n → IND.SType n → COI.SType
+ind2coiG : Stack {IND.GType} n → IND.GType n → COI.STypeF COI.SType
+ind2coiT : Stack {IND.GType} n → IND.TType n → COI.Type
+
+COI.SType.force (ind2coiS σ (gdd G)) = ind2coiG σ G
+COI.SType.force (ind2coiS σ (rec G)) = ind2coiG ⟪ σ , G ⟫ G
+COI.SType.force (ind2coiS σ (var x)) with get x σ
+... | m , σ' , gxs = ind2coiG ⟪ σ' , gxs ⟫ gxs
+
+ind2coiG σ (transmit d T S) = COI.transmit d (ind2coiT σ T) (ind2coiS σ S)
+ind2coiG σ (choice d m alt) = COI.choice d m (ind2coiS σ ∘ alt)
+ind2coiG σ end = COI.end
+
+ind2coiT σ TUnit = COI.TUnit
+ind2coiT σ TInt = COI.TInt
+ind2coiT σ (TPair T T₁) = COI.TPair (ind2coiT σ T) (ind2coiT σ T₁)
+ind2coiT σ (TChan S) = COI.TChan (ind2coiS σ S)
+
+
 -- mapping tail recursive session types to coinductive session types
 -- relies on a stack to unfold variables on the fly
 
 tail2coiT : Type → COI.Type
-tail2coiS : Stack n → SType n → COI.SType
-tail2coiG : Stack n → GType n → COI.STypeF COI.SType
+tail2coiS : Stack {GType} n → SType n → COI.SType
+tail2coiG : Stack {GType} n → GType n → COI.STypeF COI.SType
 
 tail2coiT TUnit = COI.TUnit
 tail2coiT TInt = COI.TInt
 tail2coiT (TPair t t₁) = COI.TPair (tail2coiT t) (tail2coiT t₁)
-tail2coiT (TChan s) = COI.TChan (ind2coiS s)
+tail2coiT (TChan s) = COI.TChan (ind2coiS ε s)
 
 COI.SType.force (tail2coiS σ (gdd g)) = tail2coiG σ g
 COI.SType.force (tail2coiS σ (rec g)) = tail2coiG ⟪ σ , g ⟫ g
@@ -83,6 +87,7 @@ tail2coiG σ (transmit d t s) = COI.transmit d (tail2coiT t) (tail2coiS σ s)
 tail2coiG σ (choice d m alt) = COI.choice d m (tail2coiS σ ∘ alt)
 tail2coiG σ end = COI.end
 
+
 -- get coinductive bisimulation in scope
 
 _≈_ = COI._≈_
@@ -90,9 +95,9 @@ _≈'_ = COI._≈'_
 
 -- main proposition
 
-dual-tailS : (σ : Stack n) (s : SType n) →
+dual-tailS : (σ : Stack {GType} n) (s : SType n) →
   COI.dual (tail2coiS σ s) ≈ tail2coiS (dual-stack σ) (dualS s)
-dual-tailG : (σ : Stack n) (g : GType n) →
+dual-tailG : (σ : Stack {GType} n) (g : GType n) →
   COI.dualF (tail2coiG σ g) ≈' tail2coiG (dual-stack σ) (dualG g)
 
 COI.Equiv.force (dual-tailS σ (gdd g)) = dual-tailG σ g
@@ -110,3 +115,4 @@ dual-tailG σ end = COI.eq-end
 
 dual-tail : ∀ s → COI.dual (tail2coiS ε s) ≈ tail2coiS ε (dualS s)
 dual-tail = dual-tailS ε
+
