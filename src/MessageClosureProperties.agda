@@ -12,16 +12,17 @@ open import Auxiliary.RewriteLemmas
 import Types.COI as COI
 import Types.IND1 as IND
 import Types.Tail1 as Tail
-import Duality as DI
 import DualTail1 as DT
 import MessageClosure as MC
 
 open COI using (_≈_; _≈'_; _≈ᵗ_)
-open DT using (ε)
+open DT using (Stack; ε; ⟪_,_⟫)
 
 private
   variable
     n : ℕ
+    σ σ′ : Stack n
+    G : IND.GType n
 
 ----------------------------------------------------------------------
 
@@ -68,3 +69,10 @@ mc-equiv-T IND.TUnit = COI.eq-unit
 mc-equiv-T IND.TInt = COI.eq-int
 mc-equiv-T (IND.TPair t t₁) = COI.eq-pair (mc-equiv-T t) (mc-equiv-T t₁)
 mc-equiv-T (IND.TChan S) rewrite apply-id-S S = COI.eq-chan COI.≈-refl
+
+-- relation between two stacks (to fill above hole in mc-equiv-S)
+
+data Related : DT.Stack {IND.GType} n → Stack {Tail.GType} n → Set where
+  base : Related {0} ε ε
+  step : Related {n} σ σ′
+       → Related {suc n} ⟪ σ , G ⟫ ⟪ σ′ , MC.mcloG (MC.ext {!!} (IND.rec G)) G ⟫
