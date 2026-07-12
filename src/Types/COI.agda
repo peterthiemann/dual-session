@@ -1,11 +1,12 @@
+{-# OPTIONS --guardedness #-}
 module Types.COI where
 
 open import Data.Nat
 open import Data.Fin
 
-open import Function
+open import Function hiding (force)
 
-open import Relation.Binary.PropositionalEquality hiding (Extensionality)
+open import Relation.Binary.PropositionalEquality
 
 open import Types.Direction
 
@@ -122,6 +123,7 @@ dualF (transmit d t s) = transmit (dual-dir d) t (dual s)
 dualF (choice d m alt) = choice (dual-dir d) m (dual ∘ alt)
 dualF end = end
 
+----------------------------------------------------------------------
 -- properties
 
 dual-involution : ∀ s → s ≈ dual (dual s)

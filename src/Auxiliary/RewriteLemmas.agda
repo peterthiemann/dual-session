@@ -5,7 +5,7 @@ open import Data.Nat
 open import Data.Fin hiding (_+_ ; _<_ ; _≤_)
 open import Data.Fin.Properties
 
-open import Relation.Binary.PropositionalEquality hiding (Extensionality)
+open import Relation.Binary.PropositionalEquality
 
 open import Agda.Builtin.Equality.Rewrite
 
@@ -27,12 +27,6 @@ n+0=n {zero} = refl
 n+0=n {suc n} = cong suc (n+0=n {n})
 
 {-# REWRITE n+0=n #-}
-
-inject+0-x=x : {x : Fin m} → inject+ 0 x ≡ x
-inject+0-x=x {x = zero} = refl
-inject+0-x=x {x = suc x} = cong suc inject+0-x=x
-
-{-# REWRITE inject+0-x=x #-}
 
 n+sucm : n + suc m ≡ suc (n + m)
 n+sucm {zero} = refl
@@ -94,4 +88,3 @@ suc[n∸suc[toℕi]+toℕi]≡n {suc n} {i} = suc[n∸sucx+x]≡n{suc n}{toℕ i
 <suc : {n x : ℕ} → x < n → x < suc n
 <suc {suc n} {zero} le = s≤s z≤n
 <suc {suc n} {suc x} (s≤s le) = s≤s (<suc le)
-

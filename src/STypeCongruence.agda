@@ -1,3 +1,4 @@
+{-# OPTIONS --rewriting --guardedness #-}
 module STypeCongruence where
 
 open import Data.Fin
@@ -5,6 +6,7 @@ open import Data.Fin
 open import Duality
 
 open import Types.Direction
+import Types.COI as COI
 
 open COI
 

@@ -1,4 +1,4 @@
-module Max where
+module OutOfFocus.Max where
 
 open import Data.Empty using (⊥-elim)
 open import Data.Fin
@@ -50,7 +50,7 @@ max? {suc (suc n)} (suc .(fromℕ n)) | yes max = yes max
 max? {suc (suc n)} (suc x)          | no ¬p = no (¬p ∘ max-pre)
 
 -- The reduce function preserves ≤.
-reduce₁ : ∀ {m} {x : Fin n} (¬p : ¬ Max (suc x))
+reduce₁ : ∀ {m : Fin n} {x : Fin n} (¬p : ¬ Max (suc x))
           → m ≤ x → suc m ≤ inject₁ (reduce ¬p)
 reduce₁ {m = zero} ¬p₁ z≤n = s≤s z≤n
 reduce₁ {m = suc m} {zero} ¬p ()
@@ -88,4 +88,3 @@ trans-< {x = zero} {z = ()} p
 trans-< {x = suc x} {zero} ()
 trans-< {x = suc x} {suc y} {zero} (s≤s p) = z≤n
 trans-< {x = suc x} {suc y} {suc z} (s≤s p) = s≤s (trans-< p)
-

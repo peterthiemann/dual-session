@@ -1,8 +1,9 @@
-{-# OPTIONS --rewriting #-}
-module MessageClosureProperties where
+{-# OPTIONS --rewriting --guardedness #-}
+module OutOfFocus.MessageClosureProperties where
 
 open import Data.Nat using (ℕ; zero ; suc)
 open import Data.Fin using (Fin; zero; suc)
+open import Data.Product
 open import Function using (_∘_)
 open import Relation.Binary.PropositionalEquality using (_≡_; cong; cong₂; sym; refl)
 
@@ -47,6 +48,33 @@ apply-id-T IND.TInt = refl
 apply-id-T (IND.TPair T T₁) = cong₂ IND.TPair (apply-id-T T) (apply-id-T T₁)
 apply-id-T (IND.TChan S) = cong IND.TChan (apply-id-S S)
 
+mc-equiv-S-1 : {G' : IND.GType 1} → (S : IND.SType 1) →
+  (DT.ind2coiS ⟪ ε , G' ⟫ S) ≈
+  (DT.tail2coiS ⟪ ε , MC.mcloG (MC.ext IND.var (IND.rec G')) G' ⟫
+       (MC.mcloS (MC.ext IND.var (IND.rec G')) S))
+
+mc-equiv-G-1 : {G' : IND.GType 1} → (G : IND.GType 1) →
+  (DT.ind2coiG ⟪ ε , G' ⟫ G) ≈'
+  (DT.tail2coiG ⟪ ε , MC.mcloG (MC.ext IND.var (IND.rec G')) G' ⟫
+                (MC.mcloG (MC.ext IND.var (IND.rec G')) G))
+mc-equiv-T-1 : {G' : IND.GType 1} → (T : IND.Type 1) →
+  (DT.ind2coiT ⟪ ε , G' ⟫ T) ≈ᵗ
+  (DT.tail2coiT
+       (MC.injectT (MC.applyT (MC.ext IND.var (IND.rec G')) T)))
+
+COI.Equiv.force (mc-equiv-S-1 (IND.gdd G)) = mc-equiv-G-1 G
+COI.Equiv.force (mc-equiv-S-1 (IND.rec G)) = {!!}
+COI.Equiv.force (mc-equiv-S-1 {G'} (IND.var x)) = {!!}
+
+mc-equiv-G-1 (IND.transmit d T S) = COI.eq-transmit d (mc-equiv-T-1 T) (mc-equiv-S-1 S)
+mc-equiv-G-1 (IND.choice d m alt) = COI.eq-choice d (mc-equiv-S-1 ∘ alt)
+mc-equiv-G-1 IND.end = COI.eq-end
+
+mc-equiv-T-1 IND.TUnit = COI.eq-unit
+mc-equiv-T-1 IND.TInt = COI.eq-int
+mc-equiv-T-1 (IND.TPair T T₁) = COI.eq-pair (mc-equiv-T-1 T) (mc-equiv-T-1 T₁)
+mc-equiv-T-1 (IND.TChan S) = COI.eq-chan {!!}
+
 mc-equiv-S : (s : IND.SType 0)
   → DT.ind2coiS ε s ≈ DT.tail2coiS ε (MC.mclosureS s)
 mc-equiv-G : (g : IND.GType 0)
@@ -55,7 +83,7 @@ mc-equiv-T : (t : IND.TType 0)
   → DT.ind2coiT ε t ≈ᵗ DT.tail2coiT (MC.injectT (MC.applyT IND.var t))
 
 COI.Equiv.force (mc-equiv-S (IND.gdd g)) = mc-equiv-G g
-COI.Equiv.force (mc-equiv-S (IND.rec G)) = {!!}
+COI.Equiv.force (mc-equiv-S (IND.rec G)) = mc-equiv-G-1 G
 -- mc-equiv-G (IND.st-substG G zero (IND.rec G))
 
 mc-equiv-G (IND.transmit d t s) =

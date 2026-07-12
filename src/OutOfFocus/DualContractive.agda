@@ -1,23 +1,23 @@
-{-# OPTIONS --rewriting #-}
-module DualContractive where
+{-# OPTIONS --rewriting --guardedness #-}
+module OutOfFocus.DualContractive where
 
 open import Data.Fin
 open import Data.Maybe
 open import Data.Nat hiding (_≤_ ; compare) renaming (_+_ to _+ℕ_)
 open import Data.Nat.Properties
-open import Data.Sum hiding (map)
+open import Data.Sum hiding (map ; reduce)
 open import Data.Product
 
 open import Relation.Nullary
-open import Relation.Binary.PropositionalEquality hiding (Extensionality)
+open import Relation.Binary.PropositionalEquality
 
-open import Function
+open import Function hiding (force)
 
 open import Types.Direction
 
 open import Auxiliary.Extensionality
 
-open import Max hiding (n)
+open import OutOfFocus.Max hiding (n)
 
 ----------------------------------------------------------------------
 -- see also https://github.com/zmthy/recursive-types/tree/ftfjp16
@@ -52,12 +52,6 @@ open import Agda.Builtin.Equality.Rewrite
 {- REWRITE n+1=suc-n #-}
 
 {-# REWRITE n+0=n #-}
-
--- inject+0-x=x : {x : Fin m} → inject+ 0 x ≡ x
--- inject+0-x=x {x = zero} = refl
--- inject+0-x=x {x = suc x} = cong suc inject+0-x=x
-
-{- REWRITE inject+0-x=x #-}
 
 ----------------------------------------------------------------------
 -- types and session types
@@ -166,7 +160,7 @@ increaseT : ∀ m → TType n → TType (n +ℕ m)
 
 increaseS m (xmt d t s) = xmt d (increaseT m t) (increaseS m s)
 increaseS m (rec s) = rec (increaseS m s)
-increaseS m (var x) = var (inject+ m x) -- should say increase here
+increaseS m (var x) = var (x ↑ˡ m) -- should say increase here
 increaseS m end = end
 
 increaseT m TInt = TInt
@@ -178,7 +172,7 @@ weakenT : ∀ m → TType n → TType (n +ℕ m)
 
 weakenS m (xmt d t s) = xmt d (weakenT m t) (weakenS m s)
 weakenS m (rec s) = rec (weakenS m s)
-weakenS m (var x) = var (inject+ m x)
+weakenS m (var x) = var (x ↑ˡ m)
 weakenS m end = end
 
 weakenT m TInt = TInt
@@ -198,8 +192,8 @@ weaken'S {suc n} m zero (var x) = var (increase m x)
 weaken'S {suc n} m (suc i) (var x)
   with compare i x
 weaken'S {suc n} m (suc .(inject least)) (var x) | less .x least = var (increase m x)
-weaken'S {suc n} m (suc i) (var .i) | equal .i = var (inject+ m i)
-weaken'S {suc n} m (suc i) (var .(inject least)) | greater .i least = var (inject+ m (inject least))
+weaken'S {suc n} m (suc i) (var .i) | equal .i = var (i ↑ˡ m)
+weaken'S {suc n} m (suc i) (var .(inject least)) | greater .i least = var ((inject least) ↑ˡ m)
 
 
 weaken'T m i TInt = TInt
@@ -741,8 +735,7 @@ module μ-unrolling where
     with unroll SC
   ... | SC' = equivs-refl SC'
   Equiv.force (unroll-equiv (end , con-end)) = eq-end
-  Equiv.force (unroll-equiv (rec S , con-rec cs))
-    rewrite unfold-≡ S cs =
+  Equiv.force (unroll-equiv (rec S , con-rec cs)) =
     let S₁ = unfold!! (S , cs) (λ { (S' , c') → (subst-maxS (rec S) S') , (subst-contr-mS (c-weakenS₁ c') (con-rec cs)) }) in
     let eqx = equivs-refl S₁ in
     {!S₁!}

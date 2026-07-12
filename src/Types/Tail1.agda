@@ -1,3 +1,4 @@
+{-# OPTIONS --rewriting --guardedness #-}
 module Types.Tail1 where
 
 open import Data.Fin

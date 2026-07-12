@@ -1,3 +1,4 @@
+{-# OPTIONS --rewriting --guardedness #-}
 module DualTail1 where
 
 open import Data.Nat
@@ -115,4 +116,3 @@ dual-tailG σ end = COI.eq-end
 
 dual-tail : ∀ s → COI.dual (tail2coiS ε s) ≈ tail2coiS ε (dualS s)
 dual-tail = dual-tailS ε
-

@@ -1,3 +1,4 @@
+{-# OPTIONS --rewriting --guardedness #-}
 module MessageClosure where
 
 open import Data.Fin using (Fin; zero; suc; toℕ)
@@ -40,15 +41,21 @@ applyG : (Fin (m + n) → SType m) → GType (m + n) → GType m
 
 applyT σ TUnit = TUnit
 applyT σ TInt = TInt
-applyT σ (TPair T T₁) = TPair (applyT σ T) (applyT σ T₁)
-applyT σ (TChan x) = TChan (applyS σ x)
+applyT {m = m} {n = n} σ (TPair T T₁) =
+  TPair (applyT {m = m} {n = n} σ T) (applyT {m = m} {n = n} σ T₁)
+applyT {m = m} {n = n} σ (TChan x) =
+  TChan (applyS {m = m} {n = n} σ x)
 
-applyS σ (gdd gst) = gdd (applyG σ gst)
-applyS σ (rec gst) = rec (applyG (shift σ) gst)
+applyS {m = m} {n = n} σ (gdd gst) =
+  gdd (applyG {m = m} {n = n} σ gst)
+applyS {m = m} {n = n} σ (rec gst) =
+  rec (applyG {m = suc m} {n = n} (shift {m = m} {n = n} σ) gst)
 applyS σ (var x) = σ x 
 
-applyG σ (transmit d t s) = transmit d (applyT σ t) (applyS σ s)
-applyG σ (choice d m alt) = choice d m (applyS σ ∘ alt)
+applyG {m = m} {n = n} σ (transmit d t s) =
+  transmit d (applyT {m = m} {n = n} σ t) (applyS {m = m} {n = n} σ s)
+applyG {m = m} {n = n} σ (choice d k alt) =
+  choice d k (applyS {m = m} {n = n} σ ∘ alt)
 applyG σ end = end
 
 injectT : TType 0 → Tail.Type

@@ -1,12 +1,13 @@
+{-# OPTIONS --rewriting --guardedness #-}
 module Types.IND where
 
 open import Data.Nat
 open import Data.Fin hiding (_+_)
 open import Data.Product
 
-open import Function
+open import Function hiding (force)
 
-open import Relation.Binary.PropositionalEquality hiding (Extensionality)
+open import Relation.Binary.PropositionalEquality
 
 open import Types.Direction
 open import Auxiliary.Extensionality
@@ -41,24 +42,71 @@ mutual
   
 TType = Type
 
--- weakening
+----------------------------------------------------------------------
+-- renamings and substitutions
+
+Ren : ℕ → ℕ → Set
+Ren n m = Fin n → Fin m
+
+Sub : ℕ → ℕ → Set
+Sub n m = Polarity → Fin n → SType m
+
+liftRen : Ren n m → Ren (suc n) (suc m)
+liftRen ρ zero = zero
+liftRen ρ (suc x) = suc (ρ x)
+
+renameS : Ren n m → SType n → SType m
+renameG : Ren n m → GType n → GType m
+renameT : Ren n m → TType n → TType m
+
+renameS ρ (gdd gst) = gdd (renameG ρ gst)
+renameS ρ (rec gst) = rec (renameG (liftRen ρ) gst)
+renameS ρ (var p x) = var p (ρ x)
+
+renameG ρ (transmit d t s) = transmit d (renameT ρ t) (renameS ρ s)
+renameG ρ (choice d m alt) = choice d m (renameS ρ ∘ alt)
+renameG ρ end = end
+
+renameT ρ TUnit = TUnit
+renameT ρ TInt = TInt
+renameT ρ (TPair ty ty₁) = TPair (renameT ρ ty) (renameT ρ ty₁)
+renameT ρ (TChan x) = TChan (renameS ρ x)
+
+liftSub : Sub n m → Sub (suc n) (suc m)
+liftSub σ p zero = var p zero
+liftSub σ p (suc x) = renameS suc (σ p x)
+
+substS : Sub n m → SType n → SType m
+substG : Sub n m → GType n → GType m
+substT : Sub n m → TType n → TType m
+
+substS σ (gdd gst) = gdd (substG σ gst)
+substS σ (rec gst) = rec (substG (liftSub σ) gst)
+substS σ (var p x) = σ p x
+
+substG σ (transmit d t s) = transmit d (substT σ t) (substS σ s)
+substG σ (choice d m alt) = choice d m (substS σ ∘ alt)
+substG σ end = end
+
+substT σ TUnit = TUnit
+substT σ TInt = TInt
+substT σ (TPair ty ty₁) = TPair (substT σ ty) (substT σ ty₁)
+substT σ (TChan x) = TChan (substS σ x)
+
+----------------------------------------------------------------------
+-- weakening as renaming
+
+weakenRen : (n : ℕ) → Ren m (m + n)
+weakenRen {zero} n ()
+weakenRen {suc m} n = liftRen (weakenRen {m} n)
 
 weakenS : (n : ℕ) → SType m → SType (m + n)
 weakenG : (n : ℕ) → GType m → GType (m + n)
 weakenT : (n : ℕ) → TType m → TType (m + n)
 
-weakenS n (gdd gst) = gdd (weakenG n gst)
-weakenS n (rec gst) = rec (weakenG n gst)
-weakenS n (var p x) = var p (inject+ n x)
-
-weakenG n (transmit d t s) = transmit d (weakenT n t) (weakenS n s)
-weakenG n (choice d m alt) = choice d m (weakenS n ∘ alt)
-weakenG n end = end
-
-weakenT n TUnit = TUnit
-weakenT n TInt = TInt
-weakenT n (TPair ty ty₁) = TPair (weakenT n ty) (weakenT n ty₁)
-weakenT n (TChan x) = TChan (weakenS n x)
+weakenS n s = renameS (weakenRen n) s
+weakenG n g = renameG (weakenRen n) g
+weakenT n t = renameT (weakenRen n) t
 
 weaken1 : SType m → SType (suc m)
 weaken1{m} stm with weakenS 1 stm
@@ -78,27 +126,20 @@ module CheckWeaken where
   check-weakenS2 : weakenS 2 s0 ≡ s2
   check-weakenS2 = cong rec (cong (transmit SND TUnit) refl)
 
+insertRen : Fin (suc n) → Ren n (suc n)
+insertRen zero = suc
+insertRen {suc n} (suc i) = liftRen (insertRen {n} i)
+
 weaken1'N : Fin (suc n) → Fin n → Fin (suc n)
-weaken1'N zero x = suc x
-weaken1'N (suc i) zero = zero
-weaken1'N (suc i) (suc x) = suc (weaken1'N i x)
+weaken1'N = insertRen
 
 weaken1'S : Fin (suc n) → SType n → SType (suc n)
 weaken1'G : Fin (suc n) → GType n → GType (suc n)
 weaken1'T : Fin (suc n) → TType n → TType (suc n)
 
-weaken1'S i (gdd gst) = gdd (weaken1'G i gst)
-weaken1'S i (rec gst) = rec (weaken1'G (suc i) gst)
-weaken1'S i (var p x) = var p (weaken1'N i x)
-
-weaken1'G i (transmit d t s) = transmit d (weaken1'T i t) (weaken1'S i s)
-weaken1'G i (choice d m alt) = choice d m (weaken1'S i ∘ alt)
-weaken1'G i end = end
-
-weaken1'T i TUnit = TUnit
-weaken1'T i TInt = TInt
-weaken1'T i (TPair t₁ t₂) = TPair (weaken1'T i t₁) (weaken1'T i t₂)
-weaken1'T i (TChan x) = TChan (weaken1'S i x)
+weaken1'S i s = renameS (weaken1'N i) s
+weaken1'G i g = renameG (weaken1'N i) g
+weaken1'T i t = renameT (weaken1'N i) t
 
 weaken1S : SType n → SType (suc n)
 weaken1G : GType n → GType (suc n)
@@ -190,18 +231,18 @@ weak-weakT i j le (TChan s)    = cong TChan (weak-weakS i j le s)
 
 
 weaken1-weakenN : (m : ℕ) (j : Fin (suc n)) (x : Fin n)
-  → inject+ m (weaken1'N j x) ≡ weaken1'N (inject+ m j) (inject+ m x)
+  → weakenRen m (weaken1'N j x) ≡ weaken1'N (weakenRen m j) (weakenRen m x)
 weaken1-weakenN m zero zero           = refl
 weaken1-weakenN m zero (suc x)      = refl
 weaken1-weakenN m (suc j) zero      = refl
 weaken1-weakenN m (suc j) (suc x) = cong suc (weaken1-weakenN m j x)
 
 weaken1-weakenS : (m : ℕ) (j : Fin (suc n)) (s : SType n)
-  → weakenS m (weaken1'S j s) ≡ weaken1'S (inject+ m j) (weakenS m s) 
+  → weakenS m (weaken1'S j s) ≡ weaken1'S (weakenRen m j) (weakenS m s) 
 weaken1-weakenG : (m : ℕ) (j : Fin (suc n)) (g : GType n)
-  → weakenG m (weaken1'G j g) ≡ weaken1'G (inject+ m j) (weakenG m g)
+  → weakenG m (weaken1'G j g) ≡ weaken1'G (weakenRen m j) (weakenG m g)
 weaken1-weakenT : (m : ℕ) (j : Fin (suc n)) (t : Type n)
-  → weakenT m (weaken1'T j t) ≡ weaken1'T (inject+ m j) (weakenT m t)
+  → weakenT m (weaken1'T j t) ≡ weaken1'T (weakenRen m j) (weakenT m t)
 weaken1-weakenS m j (gdd gst) = cong gdd (weaken1-weakenG m j gst)
 weaken1-weakenS m j (rec gst) = cong rec (weaken1-weakenG m (suc j) gst)
 weaken1-weakenS m zero (var p zero)      = refl
@@ -292,11 +333,11 @@ swap-weakenT i t = swap-weaken1'T< i zero z≤n t
 -- swapping of general weakening
 {-# TERMINATING #-}
 swap-weakenG' : (m : ℕ) (j : Fin (suc n)) (gst : GType (suc n))
-  → swap-polG (inject+ m j) (weakenG m gst) ≡ weakenG m (swap-polG j gst)
+  → swap-polG (weakenRen m j) (weakenG m gst) ≡ weakenG m (swap-polG j gst)
 swap-weakenS' : (m : ℕ) (j : Fin (suc n)) (s : SType (suc n))
-  → swap-polS (inject+ m j) (weakenS m s) ≡ weakenS m (swap-polS j s)
+  → swap-polS (weakenRen m j) (weakenS m s) ≡ weakenS m (swap-polS j s)
 swap-weakenT' : (m : ℕ) (j : Fin (suc n)) (t : Type (suc n))
-  → swap-polT (inject+ m j) (weakenT m t) ≡ weakenT m (swap-polT j t)
+  → swap-polT (weakenRen m j) (weakenT m t) ≡ weakenT m (swap-polT j t)
 
 swap-weakenG' m j (transmit d t s) = cong₂ (transmit d) (swap-weakenT' m j t) (swap-weakenS' m j s)
 swap-weakenG' m j (choice d m₁ alt) = cong (choice d m₁) (ext (swap-weakenS' m j ∘ alt))
@@ -330,7 +371,7 @@ swap-pol-invS i (gdd gst) = cong gdd (swap-pol-invG i gst)
 swap-pol-invS i (rec gst) = cong rec (swap-pol-invG (suc i) gst)
 swap-pol-invS zero (var p zero) rewrite dual-pol-inv p = refl
 swap-pol-invS (suc i) (var p zero) = refl
-swap-pol-invS zero (var p (suc x)) rewrite dual-pol-inv p = refl
+swap-pol-invS zero (var p (suc x)) = refl
 swap-pol-invS {suc n} (suc i) (var p (suc x))
   rewrite swap-weakenS i (swap-polS i (var p x)) | swap-pol-invS i (var p x) = refl
 
@@ -476,27 +517,20 @@ dual-if-dual POS ist = (dual-invS ist)
 dual-if-dual NEG ist = refl 
 
 --------------------------------------------------------------------
--- substitution
+-- single closed substitution as a simultaneous substitution
+
+singleSub0 : Fin (suc n) → SType 0 → Sub (suc n) n
+singleSub0 {n} zero st0 p zero = weakenS n (dual-if p st0)
+singleSub0 {suc n} zero st0 p (suc x) = var p x
+singleSub0 {suc n} (suc i) st0 = liftSub (singleSub0 {n} i st0)
 
 st-substS : SType (suc n) → Fin (suc n) → SType 0 → SType n
 st-substG : GType (suc n) → Fin (suc n) → SType 0 → GType n
 st-substT : Type (suc n) → Fin (suc n) → SType 0 → Type n
 
-st-substS (gdd gst) i st0 = gdd (st-substG gst i st0)
-st-substS (rec gst) i st0 = rec (st-substG gst (suc i) st0)
-st-substS {n} (var p zero) zero st0 = weakenS n (dual-if p st0)
-st-substS {suc n} (var p zero) (suc i) st0 = var p zero
-st-substS {suc n} (var p (suc x)) zero st0 = var p x
-st-substS {suc n} (var p (suc x)) (suc i) st0 = weaken1S (st-substS (var p x) i st0)
-
-st-substG (transmit d t s) i st0 = transmit d (st-substT t i st0) (st-substS s i st0)
-st-substG (choice d m alt) i st0 = choice d m (λ j → st-substS (alt j) i st0)
-st-substG end i st0 = end
-
-st-substT TUnit i st0 = TUnit
-st-substT TInt i st0 = TInt
-st-substT (TPair ty ty₁) i st0 = TPair (st-substT ty i st0) (st-substT ty₁ i st0)
-st-substT (TChan st) i st0 = TChan (st-substS st i st0)
+st-substS s i st0 = substS (singleSub0 i st0) s
+st-substG g i st0 = substG (singleSub0 i st0) g
+st-substT t i st0 = substT (singleSub0 i st0) t
 
 --------------------------------------------------------------------
 
@@ -577,4 +611,3 @@ force (≈-symm s₁≈s₂) = ≈'-symm (force s₁≈s₂)
 ≈ᵗ-symm eq-int = eq-int
 ≈ᵗ-symm (eq-pair t₁≈ᵗt₂ t₁≈ᵗt₃) = eq-pair (≈ᵗ-symm t₁≈ᵗt₂) (≈ᵗ-symm t₁≈ᵗt₃)
 ≈ᵗ-symm (eq-chan x) = eq-chan (≈-symm x)
-

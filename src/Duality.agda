@@ -1,4 +1,4 @@
-{-# OPTIONS --rewriting #-}
+{-# OPTIONS --rewriting --guardedness #-}
 module Duality where
 
 open import Data.Bool
@@ -10,7 +10,7 @@ open import Data.Product
 
 open import Function
 
-open import Relation.Binary.PropositionalEquality hiding (Extensionality)
+open import Relation.Binary.PropositionalEquality
 
 open import Agda.Builtin.Equality.Rewrite
 
@@ -233,4 +233,3 @@ Equiv.force (dual-compatibleS (rec gst))
 dual-compatibleG (transmit d t s) = eq-transmit (dual-dir d) ≈ᵗ-refl (dual-compatibleS s)
 dual-compatibleG (choice d m alt) = eq-choice (dual-dir d) (dual-compatibleS ∘ alt)
 dual-compatibleG end = eq-end
-
