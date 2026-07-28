@@ -1,12 +1,12 @@
 {-# OPTIONS --rewriting --guardedness #-}
 module Types.Tail1 where
 
-open import Data.Fin
-open import Data.Nat
+open import Data.Fin using (Fin)
+open import Data.Nat using (ℕ; suc)
 open import Function using (_∘_)
 
-open import Types.Direction
-import Types.IND1 as IND
+open import Types.Direction using (Dir; dual-dir)
+import Types.IND1 as IND using (SType)
 
 private
   variable
@@ -22,6 +22,7 @@ data GType (n : ℕ) : Set
 data Type where
   TUnit TInt : Type
   TPair : (t₁ t₂ : Type) → Type
+  TFun : (t₁ t₂ : Type) → Type
   TChan : (s : IND.SType 0) → Type
 
 data SType n where

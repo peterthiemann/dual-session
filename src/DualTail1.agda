@@ -63,6 +63,7 @@ ind2coiG σ end = COI.end
 ind2coiT σ TUnit = COI.TUnit
 ind2coiT σ TInt = COI.TInt
 ind2coiT σ (TPair T T₁) = COI.TPair (ind2coiT σ T) (ind2coiT σ T₁)
+ind2coiT σ (TFun T T₁) = COI.TFun (ind2coiT σ T) (ind2coiT σ T₁)
 ind2coiT σ (TChan S) = COI.TChan (ind2coiS σ S)
 
 
@@ -76,6 +77,7 @@ tail2coiG : Stack {GType} n → GType n → COI.STypeF COI.SType
 tail2coiT TUnit = COI.TUnit
 tail2coiT TInt = COI.TInt
 tail2coiT (TPair t t₁) = COI.TPair (tail2coiT t) (tail2coiT t₁)
+tail2coiT (TFun t t₁) = COI.TFun (tail2coiT t) (tail2coiT t₁)
 tail2coiT (TChan s) = COI.TChan (ind2coiS ε s)
 
 COI.SType.force (tail2coiS σ (gdd g)) = tail2coiG σ g

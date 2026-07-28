@@ -1,18 +1,20 @@
 {-# OPTIONS --rewriting --guardedness #-}
 module Types.IND where
 
-open import Data.Nat
-open import Data.Fin hiding (_+_)
-open import Data.Product
+open import Data.Nat using (ℕ; zero; suc; _+_; z≤n; s≤s)
+import Data.Nat.Properties as ℕₚ using (+-comm)
+open import Data.Fin
+  using (Fin; Fin′; zero; suc; inject₁; inject; inject!; _≤_)
+open import Data.Product using (∃; _,_)
 
-open import Function hiding (force)
+open import Function using (_∘_)
 
 open import Relation.Binary.PropositionalEquality
+  using (_≡_; refl; cong; cong₂; sym)
 
 open import Types.Direction
-open import Auxiliary.Extensionality
-
-open import Auxiliary.RewriteLemmas
+  using (Dir; SND; dual-dir; dual-dir-inv)
+open import Auxiliary.Extensionality using (ext)
 
 private
   variable
@@ -28,6 +30,7 @@ mutual
   data Type n : Set where
     TUnit TInt : Type n
     TPair : (T₁ : Type n) (T₂ : Type n) → Type n
+    TFun : (T₁ : Type n) (T₂ : Type n) → Type n
     TChan : (S : SType n) → Type n
   
   data SType n : Set where
@@ -70,6 +73,7 @@ renameG ρ end = end
 renameT ρ TUnit = TUnit
 renameT ρ TInt = TInt
 renameT ρ (TPair ty ty₁) = TPair (renameT ρ ty) (renameT ρ ty₁)
+renameT ρ (TFun ty ty₁) = TFun (renameT ρ ty) (renameT ρ ty₁)
 renameT ρ (TChan x) = TChan (renameS ρ x)
 
 liftSub : Sub n m → Sub (suc n) (suc m)
@@ -91,6 +95,7 @@ substG σ end = end
 substT σ TUnit = TUnit
 substT σ TInt = TInt
 substT σ (TPair ty ty₁) = TPair (substT σ ty) (substT σ ty₁)
+substT σ (TFun ty ty₁) = TFun (substT σ ty) (substT σ ty₁)
 substT σ (TChan x) = TChan (substS σ x)
 
 ----------------------------------------------------------------------
@@ -110,7 +115,7 @@ weakenT n t = renameT (weakenRen n) t
 
 weaken1 : SType m → SType (suc m)
 weaken1{m} stm with weakenS 1 stm
-... | r rewrite n+1=suc-n {m} = r
+... | r rewrite ℕₚ.+-comm m 1 = r
 
 module CheckWeaken where
   s0 : SType 0
@@ -198,17 +203,18 @@ swap-polS {suc n} (suc i) (var p (suc x)) = weaken1S (swap-polS i (var p x))
 swap-polT i TUnit = TUnit
 swap-polT i TInt = TInt
 swap-polT i (TPair t₁ t₂) = TPair (swap-polT i t₁) (swap-polT i t₂)
+swap-polT i (TFun t₁ t₂) = TFun (swap-polT i t₁) (swap-polT i t₂)
 swap-polT i (TChan x) = TChan (swap-polS i x)
 
 --------------------------------------------------------------------
 
-weak-weakN : (i : Fin (suc n)) (j : Fin (suc n)) (le : Data.Fin._≤_ j i) (x : Fin n)
+weak-weakN : (i : Fin (suc n)) (j : Fin (suc n)) (le : j ≤ i) (x : Fin n)
   → weaken1'N (suc i) (weaken1'N j x) ≡ weaken1'N (inject₁ j) (weaken1'N i x)
-weak-weakG : (i : Fin (suc n)) (j : Fin (suc n)) (le : Data.Fin._≤_ j i) (g : GType n)
+weak-weakG : (i : Fin (suc n)) (j : Fin (suc n)) (le : j ≤ i) (g : GType n)
   → weaken1'G (suc i) (weaken1'G j g) ≡ weaken1'G (inject₁ j) (weaken1'G i g)
-weak-weakS : (i : Fin (suc n)) (j : Fin (suc n)) (le : Data.Fin._≤_ j i) (s : SType n)
+weak-weakS : (i : Fin (suc n)) (j : Fin (suc n)) (le : j ≤ i) (s : SType n)
   → weaken1'S (suc i) (weaken1'S j s) ≡ weaken1'S (inject₁ j) (weaken1'S i s)
-weak-weakT : (i : Fin (suc n)) (j : Fin (suc n)) (le : Data.Fin._≤_ j i) (t : Type n)
+weak-weakT : (i : Fin (suc n)) (j : Fin (suc n)) (le : j ≤ i) (t : Type n)
   → weaken1'T (suc i) (weaken1'T j t) ≡ weaken1'T (inject₁ j) (weaken1'T i t)
 
 weak-weakN zero zero le x                              = refl
@@ -227,6 +233,7 @@ weak-weakS i j le (var p x) = cong (var p) (weak-weakN i j le x)
 weak-weakT i j le TUnit        = refl
 weak-weakT i j le TInt         = refl
 weak-weakT i j le (TPair t t₁) = cong₂ TPair (weak-weakT i j le t) (weak-weakT i j le t₁)
+weak-weakT i j le (TFun t t₁)  = cong₂ TFun (weak-weakT i j le t) (weak-weakT i j le t₁)
 weak-weakT i j le (TChan s)    = cong TChan (weak-weakS i j le s)
 
 
@@ -257,6 +264,7 @@ weaken1-weakenG m j end = refl
 weaken1-weakenT m j TUnit = refl
 weaken1-weakenT m j TInt = refl
 weaken1-weakenT m j (TPair t t₁) = cong₂ TPair (weaken1-weakenT m j t) (weaken1-weakenT m j t₁)
+weaken1-weakenT m j (TFun t t₁) = cong₂ TFun (weaken1-weakenT m j t) (weaken1-weakenT m j t₁)
 weaken1-weakenT m j (TChan x) = cong TChan (weaken1-weakenS m j x)
 
 --------------------------------------------------------------------
@@ -286,17 +294,18 @@ swap-weaken1'S{suc n} (suc i) (suc j) (var p (suc x)) rewrite (weak-weakS i zero
 swap-weaken1'T i j TUnit         = refl
 swap-weaken1'T i j TInt          = refl
 swap-weaken1'T i j (TPair t₁ t₂) = cong₂ TPair (swap-weaken1'T i j t₁) (swap-weaken1'T i j t₂)
+swap-weaken1'T i j (TFun t₁ t₂)  = cong₂ TFun (swap-weaken1'T i j t₁) (swap-weaken1'T i j t₂)
 swap-weaken1'T i j (TChan s)     = cong TChan (swap-weaken1'S i j s)
 
 --------------------------------------------------------------------
 
 -- weakening of earlier index
 {-# TERMINATING #-}
-swap-weaken1'S< : (i : Fin (suc n)) (j : Fin (suc n)) (le : Data.Fin._≤_ j i) → (s : SType (suc n)) →
+swap-weaken1'S< : (i : Fin (suc n)) (j : Fin (suc n)) (le : j ≤ i) → (s : SType (suc n)) →
   swap-polS (suc i) (weaken1'S (inject₁ j) s) ≡ weaken1'S (inject₁ j) (swap-polS i s)
-swap-weaken1'G< : (i : Fin (suc n)) (j : Fin (suc n)) (le : Data.Fin._≤_ j i) → (g : GType (suc n)) →
+swap-weaken1'G< : (i : Fin (suc n)) (j : Fin (suc n)) (le : j ≤ i) → (g : GType (suc n)) →
   swap-polG (suc i) (weaken1'G (inject₁ j) g) ≡ weaken1'G (inject₁ j) (swap-polG i g)
-swap-weaken1'T< : (i : Fin (suc n)) (j : Fin (suc n)) (le : Data.Fin._≤_ j i) → (t : Type (suc n)) →
+swap-weaken1'T< : (i : Fin (suc n)) (j : Fin (suc n)) (le : j ≤ i) → (t : Type (suc n)) →
   swap-polT (suc i) (weaken1'T (inject₁ j) t) ≡ weaken1'T (inject₁ j) (swap-polT i t)
 
 swap-weaken1'S< i j le (gdd gst)       = cong gdd (swap-weaken1'G< i j le gst)
@@ -314,6 +323,7 @@ swap-weaken1'G< i j le end = refl
 swap-weaken1'T< i j le TUnit = refl
 swap-weaken1'T< i j le TInt = refl
 swap-weaken1'T< i j le (TPair t t₁) = cong₂ (TPair) (swap-weaken1'T< i j le t) (swap-weaken1'T< i j le t₁)
+swap-weaken1'T< i j le (TFun t t₁) = cong₂ TFun (swap-weaken1'T< i j le t) (swap-weaken1'T< i j le t₁)
 swap-weaken1'T< i j le (TChan s) = cong (TChan) (swap-weaken1'S< i j le s)
 
 
@@ -355,6 +365,7 @@ swap-weakenS' {suc n} m (suc j) (var p (suc x)) rewrite (weaken1-weakenS m zero 
 swap-weakenT' m j TUnit = refl
 swap-weakenT' m j TInt = refl
 swap-weakenT' m j (TPair t t₁) = cong₂ TPair (swap-weakenT' m j t) (swap-weakenT' m j t₁)
+swap-weakenT' m j (TFun t t₁) = cong₂ TFun (swap-weakenT' m j t) (swap-weakenT' m j t₁)
 swap-weakenT' m j (TChan x) = cong TChan (swap-weakenS' m j x)
 
 --------------------------------------------------------------------
@@ -385,6 +396,7 @@ swap-pol-invG i end = refl
 swap-pol-invT i TUnit = refl
 swap-pol-invT i TInt = refl
 swap-pol-invT i (TPair ty ty₁) = cong₂ TPair (swap-pol-invT i ty) (swap-pol-invT i ty₁)
+swap-pol-invT i (TFun ty ty₁) = cong₂ TFun (swap-pol-invT i ty) (swap-pol-invT i ty₁)
 swap-pol-invT i (TChan x) = cong TChan (swap-pol-invS i x)
 
 --------------------------------------------------------------------
@@ -457,6 +469,7 @@ swap-swapG end i j = refl
 swap-swapT TUnit i j = refl
 swap-swapT TInt i j = refl
 swap-swapT (TPair t t₁) i j = cong₂ TPair (swap-swapT t i j) (swap-swapT t₁ i j)
+swap-swapT (TFun t t₁) i j = cong₂ TFun (swap-swapT t i j) (swap-swapT t₁ i j)
 swap-swapT (TChan x) i j = cong TChan (swap-swapS x i j)
 
 swap-swapS (gdd gst) i j = cong gdd (swap-swapG gst i j)
@@ -560,6 +573,7 @@ data EquivT (R : SType n → SType n → Set) : Type n → Type n → Set where
   eq-unit : EquivT R TUnit TUnit
   eq-int  : EquivT R TInt TInt
   eq-pair : EquivT R t₁ t₁' → EquivT R t₂ t₂' → EquivT R (TPair t₁ t₂) (TPair t₁' t₂')
+  eq-fun  : EquivT R t₁ t₁' → EquivT R t₂ t₂' → EquivT R (TFun t₁ t₂) (TFun t₁' t₂')
   eq-chan : R s₁ s₂ → EquivT R (TChan s₁) (TChan s₂)
 
 -- session type equivalence
@@ -593,6 +607,7 @@ force (≈-refl {s}) = ≈'-refl
 ≈ᵗ-refl {TUnit} = eq-unit
 ≈ᵗ-refl {TInt} = eq-int
 ≈ᵗ-refl {TPair t t₁} = eq-pair ≈ᵗ-refl ≈ᵗ-refl
+≈ᵗ-refl {TFun t t₁} = eq-fun ≈ᵗ-refl ≈ᵗ-refl
 ≈ᵗ-refl {TChan x} = eq-chan ≈-refl
 
 -- symmetric
@@ -610,4 +625,5 @@ force (≈-symm s₁≈s₂) = ≈'-symm (force s₁≈s₂)
 ≈ᵗ-symm eq-unit = eq-unit
 ≈ᵗ-symm eq-int = eq-int
 ≈ᵗ-symm (eq-pair t₁≈ᵗt₂ t₁≈ᵗt₃) = eq-pair (≈ᵗ-symm t₁≈ᵗt₂) (≈ᵗ-symm t₁≈ᵗt₃)
+≈ᵗ-symm (eq-fun t₁≈ᵗt₂ t₁≈ᵗt₃) = eq-fun (≈ᵗ-symm t₁≈ᵗt₂) (≈ᵗ-symm t₁≈ᵗt₃)
 ≈ᵗ-symm (eq-chan x) = eq-chan (≈-symm x)

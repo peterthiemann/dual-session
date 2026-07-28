@@ -22,7 +22,6 @@ variable
 open import Types.Direction
 
 open import Auxiliary.Extensionality
-open import Auxiliary.RewriteLemmas
 
 ----------------------------------------------------------------------
 -- session types coinductively
@@ -47,6 +46,7 @@ ind2coiG : IND.GType 0 → COI.STypeF COI.SType
 ind2coiT TUnit = TUnit
 ind2coiT TInt = TInt
 ind2coiT (TPair it it₁) = TPair (ind2coiT it) (ind2coiT it₁)
+ind2coiT (TFun it it₁) = TFun (ind2coiT it) (ind2coiT it₁)
 ind2coiT (TChan st) = TChan (ind2coiS st)
 
 ind2coiG (transmit d t ist) = transmit d (ind2coiT t) (ind2coiS ist)
@@ -81,6 +81,7 @@ subst-weakenG end i j le s0 = refl
 subst-weakenT TUnit i j le s0 = refl
 subst-weakenT TInt i j le s0 = refl
 subst-weakenT (TPair t t₁) i j le s0 = cong₂ TPair (subst-weakenT t i j le s0) (subst-weakenT t₁ i j le s0)
+subst-weakenT (TFun t t₁) i j le s0 = cong₂ TFun (subst-weakenT t i j le s0) (subst-weakenT t₁ i j le s0)
 subst-weakenT (TChan s) i j le s0 = cong TChan (subst-weakenS s i j le s0)
 
 {-# TERMINATING #-}
@@ -94,6 +95,7 @@ subst-swap-dualG : ∀ {ist} → (gst : IND.GType (suc n)) (i : Fin (suc n)) →
 subst-swap-dualT TUnit i = refl
 subst-swap-dualT TInt i = refl
 subst-swap-dualT (TPair ty ty₁) i = cong₂ TPair (subst-swap-dualT ty i) (subst-swap-dualT ty₁ i)
+subst-swap-dualT (TFun ty ty₁) i = cong₂ TFun (subst-swap-dualT ty i) (subst-swap-dualT ty₁ i)
 subst-swap-dualT (TChan x) i = cong TChan (subst-swap-dualS x i)
 
 subst-swap-dualS (gdd gst) i = cong gdd (subst-swap-dualG gst i)
@@ -129,6 +131,7 @@ swap-i-weakenG i end = refl
 swap-i-weakenT i TUnit = refl
 swap-i-weakenT i TInt = refl
 swap-i-weakenT i (TPair t₁ t₂) = cong₂ TPair (swap-i-weakenT i t₁) (swap-i-weakenT i t₂)
+swap-i-weakenT i (TFun t₁ t₂) = cong₂ TFun (swap-i-weakenT i t₁) (swap-i-weakenT i t₂)
 swap-i-weakenT i (TChan x) = cong TChan (swap-i-weakenS i x)
 
 {-# TERMINATING #-}
@@ -162,6 +165,7 @@ subst-swapS{suc n} ist (suc i) (suc j) (var p (suc x))
 subst-swapT ist i j TUnit = refl
 subst-swapT ist i j TInt = refl
 subst-swapT ist i j (TPair t t₁) = cong₂ TPair (subst-swapT ist i j t) (subst-swapT ist i j t₁)
+subst-swapT ist i j (TFun t t₁) = cong₂ TFun (subst-swapT ist i j t) (subst-swapT ist i j t₁)
 subst-swapT ist i j (TChan x) = cong TChan (subst-swapS ist i j x)
 
 ----------------------------------------------------------------------
@@ -176,6 +180,7 @@ dual-recS' : (s : IND.SType (suc n)) (i : Fin (suc n)) (ist : IND.SType 0)
 dual-recT' TUnit i ist = refl
 dual-recT' TInt i ist = refl
 dual-recT' (TPair t t₁) i ist = cong₂ TPair (dual-recT' t i ist) (dual-recT' t₁ i ist)
+dual-recT' (TFun t t₁) i ist = cong₂ TFun (dual-recT' t i ist) (dual-recT' t₁ i ist)
 dual-recT' (TChan s) i ist = cong TChan (dual-recS' s i ist)
 
 dual-recG' (transmit d t s) i ist = cong₂ (transmit d) (dual-recT' t i ist) (dual-recS' s i ist)

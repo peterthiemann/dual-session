@@ -1,18 +1,20 @@
 {-# OPTIONS --guardedness #-}
 module Types.COI where
 
-open import Data.Nat
-open import Data.Fin
+open import Data.Nat using (ℕ)
+open import Data.Fin using (Fin)
 
-open import Function hiding (force)
+open import Function using (_∘_)
 
-open import Relation.Binary.PropositionalEquality
+open import Relation.Binary.PropositionalEquality using (_≡_; refl)
 
 open import Types.Direction
+  using (Dir; SND; RCV; dual-dir; dual-dir-inv)
 
 private
   variable
     m n : ℕ
+    d d₁ d₂ d₃ : Dir
 
 --------------------------------------------------------------------
 -- session types coinductively
@@ -21,6 +23,7 @@ mutual
   data Type : Set where
     TUnit TInt : Type
     TPair : Type → Type → Type
+    TFun : Type → Type → Type
     TChan : SType → Type
   
   data STypeF (S : Set) : Set where
@@ -46,6 +49,7 @@ data EquivT (R : SType → SType → Set) : Type → Type → Set where
   eq-unit : EquivT R TUnit TUnit
   eq-int  : EquivT R TInt TInt
   eq-pair : EquivT R t₁ t₁' → EquivT R t₂ t₂' → EquivT R (TPair t₁ t₂) (TPair t₁' t₂')
+  eq-fun  : EquivT R t₁ t₁' → EquivT R t₂ t₂' → EquivT R (TFun t₁ t₂) (TFun t₁' t₂')
   eq-chan : R s₁ s₂ → EquivT R (TChan s₁) (TChan s₂)
 
 -- session type equivalence
@@ -78,6 +82,7 @@ force (≈-refl {s}) = ≈'-refl
 ≈ᵗ-refl {TUnit} = eq-unit
 ≈ᵗ-refl {TInt} = eq-int
 ≈ᵗ-refl {TPair t t₁} = eq-pair ≈ᵗ-refl ≈ᵗ-refl
+≈ᵗ-refl {TFun t t₁} = eq-fun ≈ᵗ-refl ≈ᵗ-refl
 ≈ᵗ-refl {TChan x} = eq-chan ≈-refl
 
 -- symmetry
@@ -94,6 +99,7 @@ force (≈-symm s₁≈s₂) = ≈'-symm (force s₁≈s₂)
 ≈ᵗ-symm eq-unit = eq-unit
 ≈ᵗ-symm eq-int = eq-int
 ≈ᵗ-symm (eq-pair t₁≈t₂ t₁≈t₃) = eq-pair (≈ᵗ-symm t₁≈t₂) (≈ᵗ-symm t₁≈t₃)
+≈ᵗ-symm (eq-fun t₁≈t₂ t₁≈t₃) = eq-fun (≈ᵗ-symm t₁≈t₂) (≈ᵗ-symm t₁≈t₃)
 ≈ᵗ-symm (eq-chan x) = eq-chan (≈-symm x)
 
 -- transitivity
@@ -110,6 +116,7 @@ force (≈-trans s₁≈s₂ s₂≈s₃) = ≈'-trans (force s₁≈s₂) (forc
 ≈ᵗ-trans eq-unit eq-unit = eq-unit
 ≈ᵗ-trans eq-int eq-int = eq-int
 ≈ᵗ-trans (eq-pair t₁≈ᵗt₂ t₁≈ᵗt₃) (eq-pair t₂≈ᵗt₃ t₂≈ᵗt₄) = eq-pair (≈ᵗ-trans t₁≈ᵗt₂ t₂≈ᵗt₃) (≈ᵗ-trans t₁≈ᵗt₃ t₂≈ᵗt₄)
+≈ᵗ-trans (eq-fun t₁≈ᵗt₂ t₁≈ᵗt₃) (eq-fun t₂≈ᵗt₃ t₂≈ᵗt₄) = eq-fun (≈ᵗ-trans t₁≈ᵗt₂ t₂≈ᵗt₃) (≈ᵗ-trans t₁≈ᵗt₃ t₂≈ᵗt₄)
 ≈ᵗ-trans (eq-chan ss₁) (eq-chan ss₂) = eq-chan (≈-trans ss₁ ss₂)
 
 -------------------------------------------------------------------

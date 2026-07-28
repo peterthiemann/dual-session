@@ -12,6 +12,7 @@ open import Relation.Nullary
 open import Relation.Binary.PropositionalEquality
 
 open import Function hiding (force)
+open import Agda.Builtin.Equality.Rewrite
 
 open import Types.Direction
 
@@ -28,30 +29,8 @@ variable
   i i' j : Fin n 
 
 ----------------------------------------------------------------------
--- lemmas for rewriting
-
-n+1=suc-n : n +ℕ 1 ≡ suc n
-n+1=suc-n {zero} = refl
-n+1=suc-n {suc n} = cong suc (n+1=suc-n {n})
-
-n+0=n : n +ℕ 0 ≡ n
-n+0=n {zero} = refl
-n+0=n {suc n} = cong suc (n+0=n {n})
-
-n+sucm=sucn+m : ∀ n m → n +ℕ suc m ≡ suc (n +ℕ m)
-n+sucm=sucn+m zero m = refl
-n+sucm=sucn+m (suc n) m = cong suc (n+sucm=sucn+m n m)
-
-{-# REWRITE n+sucm=sucn+m #-}
-
-open import Agda.Builtin.Equality.Rewrite
-
-----------------------------------------------------------------------
--- auxiliaries for automatic rewriting
-
-{- REWRITE n+1=suc-n #-}
-
-{-# REWRITE n+0=n #-}
+-- Use the corresponding standard-library equations for normalization.
+{-# REWRITE +-suc +-identityʳ #-}
 
 ----------------------------------------------------------------------
 -- types and session types

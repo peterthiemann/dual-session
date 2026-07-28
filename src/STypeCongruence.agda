@@ -16,6 +16,8 @@ mutual
   data TypeH : Set where
       TPair-l : TypeH → (T₂ : Type) → TypeH
       TPair-r : (T₁ : Type) → TypeH → TypeH
+      TFun-dom : TypeH → (T₂ : Type) → TypeH
+      TFun-cod : (T₁ : Type) → TypeH → TypeH
       TChan   : (sh : STypeH) → TypeH
 
   data STypeH : Set where
@@ -30,6 +32,8 @@ apply-hole-S : STypeH → SType → SType
 
 apply-hole-T (TPair-l th T₂) S = TPair (apply-hole-T th S) T₂
 apply-hole-T (TPair-r T₁ th) S = TPair T₁ (apply-hole-T th S)
+apply-hole-T (TFun-dom th T₂) S = TFun (apply-hole-T th S) T₂
+apply-hole-T (TFun-cod T₁ th) S = TFun T₁ (apply-hole-T th S)
 apply-hole-T (TChan sh) S = TChan (apply-hole-S sh S)
 
 apply-hole-S hole S = S
@@ -60,4 +64,6 @@ apply-hole-S (transmit-t d th S₁) S = delay (transmit d (apply-hole-T th S) S�
 
 ≈-cong-hole-T {TPair-l th T₂} S1≈S2 = eq-pair (≈-cong-hole-T S1≈S2) ≈ᵗ-refl
 ≈-cong-hole-T {TPair-r T₁ th} S1≈S2 = eq-pair ≈ᵗ-refl (≈-cong-hole-T S1≈S2)
+≈-cong-hole-T {TFun-dom th T₂} S1≈S2 = eq-fun (≈-cong-hole-T S1≈S2) ≈ᵗ-refl
+≈-cong-hole-T {TFun-cod T₁ th} S1≈S2 = eq-fun ≈ᵗ-refl (≈-cong-hole-T S1≈S2)
 ≈-cong-hole-T {TChan sh} S1≈S2 = eq-chan (≈-cong-hole-S S1≈S2)

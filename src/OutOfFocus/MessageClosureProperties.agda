@@ -2,13 +2,16 @@
 module OutOfFocus.MessageClosureProperties where
 
 open import Data.Nat using (ℕ; zero ; suc)
+import Data.Nat.Properties as ℕₚ using (+-identityʳ)
 open import Data.Fin using (Fin; zero; suc)
 open import Data.Product
 open import Function using (_∘_)
 open import Relation.Binary.PropositionalEquality using (_≡_; cong; cong₂; sym; refl)
+open import Agda.Builtin.Equality.Rewrite
+
+{-# REWRITE ℕₚ.+-identityʳ #-}
 
 open import Auxiliary.Extensionality
-open import Auxiliary.RewriteLemmas
 
 import Types.COI as COI
 import Types.IND1 as IND
@@ -46,6 +49,7 @@ apply-id-G IND.end = refl
 apply-id-T IND.TUnit = refl
 apply-id-T IND.TInt = refl
 apply-id-T (IND.TPair T T₁) = cong₂ IND.TPair (apply-id-T T) (apply-id-T T₁)
+apply-id-T (IND.TFun T T₁) = cong₂ IND.TFun (apply-id-T T) (apply-id-T T₁)
 apply-id-T (IND.TChan S) = cong IND.TChan (apply-id-S S)
 
 mc-equiv-S-1 : {G' : IND.GType 1} → (S : IND.SType 1) →
@@ -73,6 +77,7 @@ mc-equiv-G-1 IND.end = COI.eq-end
 mc-equiv-T-1 IND.TUnit = COI.eq-unit
 mc-equiv-T-1 IND.TInt = COI.eq-int
 mc-equiv-T-1 (IND.TPair T T₁) = COI.eq-pair (mc-equiv-T-1 T) (mc-equiv-T-1 T₁)
+mc-equiv-T-1 (IND.TFun T T₁) = COI.eq-fun (mc-equiv-T-1 T) (mc-equiv-T-1 T₁)
 mc-equiv-T-1 (IND.TChan S) = COI.eq-chan {!!}
 
 mc-equiv-S : (s : IND.SType 0)
@@ -96,6 +101,7 @@ mc-equiv-G IND.end =
 mc-equiv-T IND.TUnit = COI.eq-unit
 mc-equiv-T IND.TInt = COI.eq-int
 mc-equiv-T (IND.TPair t t₁) = COI.eq-pair (mc-equiv-T t) (mc-equiv-T t₁)
+mc-equiv-T (IND.TFun t t₁) = COI.eq-fun (mc-equiv-T t) (mc-equiv-T t₁)
 mc-equiv-T (IND.TChan S) rewrite apply-id-S S = COI.eq-chan COI.≈-refl
 
 -- relation between two stacks (to fill above hole in mc-equiv-S)

@@ -52,6 +52,59 @@ postulate
 {-# REWRITE dual-gdd dual-transmit dual-choice dual-end #-}
 
 ----------------------------------------------------------------------
+-- Observational stopped duality
+
+-- One observation unfolds each closed endpoint to its next guarded action.
+-- Payloads are compared up to the existing type equivalence; directions must
+-- be opposite; continuations are related coinductively.
+data StopDualG
+    (Rel : SType 0 → SType 0 → Set) :
+    GType 0 → GType 0 → Set where
+  sd-transmit :
+    {d₁ d₂ : Dir} {T₁ T₂ : Type 0} {S₁ S₂ : SType 0} →
+    COI.DualD d₁ d₂ →
+    EquivT Equiv T₁ T₂ →
+    Rel S₁ S₂ →
+    StopDualG Rel (transmit d₁ T₁ S₁) (transmit d₂ T₂ S₂)
+
+  sd-choice :
+    {d₁ d₂ : Dir} {m : ℕ}
+    {alt₁ alt₂ : Fin m → SType 0} →
+    COI.DualD d₁ d₂ →
+    ((i : Fin m) → Rel (alt₁ i) (alt₂ i)) →
+    StopDualG Rel (choice d₁ m alt₁) (choice d₂ m alt₂)
+
+  sd-end :
+    StopDualG Rel end end
+
+record StopDual (S₁ S₂ : SType 0) : Set where
+  coinductive
+  field
+    observe : StopDualG StopDual (unfold S₁) (unfold S₂)
+
+infix 4 _⊥sd_ _⊥sd'_
+
+_⊥sd_ : SType 0 → SType 0 → Set
+_⊥sd_ = StopDual
+
+_⊥sd'_ : GType 0 → GType 0 → Set
+_⊥sd'_ = StopDualG StopDual
+
+-- Observational stopped duality is symmetric.
+⊥sd-symm : {S₁ S₂ : SType 0} → S₁ ⊥sd S₂ → S₂ ⊥sd S₁
+⊥sd'-symm : {G₁ G₂ : GType 0} → G₁ ⊥sd' G₂ → G₂ ⊥sd' G₁
+
+StopDual.observe (⊥sd-symm p) =
+  ⊥sd'-symm (StopDual.observe p)
+
+⊥sd'-symm (sd-transmit dualD eqT p) =
+  sd-transmit (COI.DualD-symm dualD) (≈ᵗ-symm eqT) (⊥sd-symm p)
+⊥sd'-symm (sd-choice dualD ps) =
+  sd-choice (COI.DualD-symm dualD) (⊥sd-symm ∘ ps)
+⊥sd'-symm sd-end =
+  sd-end
+
+----------------------------------------------------------------------
 -- Small exploration examples
 
 send-end : SType 0
@@ -60,6 +113,22 @@ send-end = gdd (transmit SND TInt (gdd end))
 send-end-dual :
   dualS send-end ≡ gdd (transmit RCV TInt (gdd end))
 send-end-dual = refl
+
+end-⊥sd-end : gdd end ⊥sd gdd end
+StopDual.observe end-⊥sd-end = sd-end
+
+send-function-end : SType 0
+send-function-end =
+  gdd (transmit SND (TFun TInt TUnit) (gdd end))
+
+receive-function-end : SType 0
+receive-function-end =
+  gdd (transmit RCV (TFun TInt TUnit) (gdd end))
+
+send-function-end-⊥sd-receive-function-end :
+  send-function-end ⊥sd receive-function-end
+StopDual.observe send-function-end-⊥sd-receive-function-end =
+  sd-transmit COI.dual-sr ≈ᵗ-refl end-⊥sd-end
 
 offer-two-alt : Fin 2 → SType 0
 offer-two-alt = λ where

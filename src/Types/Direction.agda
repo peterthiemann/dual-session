@@ -1,6 +1,6 @@
 module Types.Direction where
 
-open import Relation.Binary.PropositionalEquality
+open import Relation.Binary.PropositionalEquality using (_≡_; refl)
 
 ----------------------------------------------------------------------
 -- direction
@@ -19,4 +19,3 @@ dual-dir RCV = SND
 dual-dir-inv : (d : Dir) → dual-dir (dual-dir d) ≡ d
 dual-dir-inv SND = refl
 dual-dir-inv RCV = refl
-

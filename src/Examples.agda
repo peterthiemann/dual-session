@@ -96,6 +96,7 @@ module SubstitutionDualCounterexample where
   apply-substT σ IND.TUnit = IND.TUnit
   apply-substT σ IND.TInt = IND.TInt
   apply-substT σ (IND.TPair T T₁) = IND.TPair (apply-substT σ T) (apply-substT σ T₁)
+  apply-substT σ (IND.TFun T T₁) = IND.TFun (apply-substT σ T) (apply-substT σ T₁)
   apply-substT σ (IND.TChan S) = IND.TChan (σ S)
 
   dualG : IND.GType n → (IND.SType n → IND.SType n) → IND.GType n

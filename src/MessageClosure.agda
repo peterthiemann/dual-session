@@ -29,6 +29,7 @@ upG end = end
 upT TUnit = TUnit
 upT TInt = TInt
 upT (TPair t t₁) = TPair (upT t) (upT t₁)
+upT (TFun t t₁) = TFun (upT t) (upT t₁)
 upT (TChan S) = TChan (upS S)
 
 shift : (Fin (m + n) → SType m) → (Fin (suc m + n) → SType (suc m))
@@ -43,6 +44,8 @@ applyT σ TUnit = TUnit
 applyT σ TInt = TInt
 applyT {m = m} {n = n} σ (TPair T T₁) =
   TPair (applyT {m = m} {n = n} σ T) (applyT {m = m} {n = n} σ T₁)
+applyT {m = m} {n = n} σ (TFun T T₁) =
+  TFun (applyT {m = m} {n = n} σ T) (applyT {m = m} {n = n} σ T₁)
 applyT {m = m} {n = n} σ (TChan x) =
   TChan (applyS {m = m} {n = n} σ x)
 
@@ -63,6 +66,7 @@ injectT : TType 0 → Tail.Type
 injectT TUnit = Tail.TUnit
 injectT TInt = Tail.TInt
 injectT (TPair t t₁) = Tail.TPair (injectT t) (injectT t₁)
+injectT (TFun t t₁) = Tail.TFun (injectT t) (injectT t₁)
 injectT (TChan S) = Tail.TChan S
 
 ext : (Fin n → SType 0) → SType n → (Fin (suc n) → SType 0)
