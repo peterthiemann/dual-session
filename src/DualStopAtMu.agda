@@ -105,6 +105,64 @@ StopDual.observe (⊥sd-symm p) =
   sd-end
 
 ----------------------------------------------------------------------
+-- Transitivity of observational equivalence
+
+≈-trans :
+  {S₁ S₂ S₃ : SType 0} →
+  S₁ ≈ S₂ → S₂ ≈ S₃ → S₁ ≈ S₃
+≈'-trans :
+  {G₁ G₂ G₃ : GType 0} →
+  G₁ ≈' G₂ → G₂ ≈' G₃ → G₁ ≈' G₃
+≈ᵗ-trans :
+  {T₁ T₂ T₃ : Type 0} →
+  T₁ ≈ᵗ T₂ → T₂ ≈ᵗ T₃ → T₁ ≈ᵗ T₃
+
+Equiv.force (≈-trans S₁≈S₂ S₂≈S₃) =
+  ≈'-trans (Equiv.force S₁≈S₂) (Equiv.force S₂≈S₃)
+
+≈'-trans (eq-transmit d T₁≈T₂ S₁≈S₂)
+         (eq-transmit .d T₂≈T₃ S₂≈S₃) =
+  eq-transmit d (≈ᵗ-trans T₁≈T₂ T₂≈T₃) (≈-trans S₁≈S₂ S₂≈S₃)
+≈'-trans (eq-choice d S₁≈S₂) (eq-choice .d S₂≈S₃) =
+  eq-choice d (λ i → ≈-trans (S₁≈S₂ i) (S₂≈S₃ i))
+≈'-trans eq-end eq-end =
+  eq-end
+
+≈ᵗ-trans eq-unit eq-unit =
+  eq-unit
+≈ᵗ-trans eq-int eq-int =
+  eq-int
+≈ᵗ-trans (eq-pair T₁≈T₂ U₁≈U₂) (eq-pair T₂≈T₃ U₂≈U₃) =
+  eq-pair (≈ᵗ-trans T₁≈T₂ T₂≈T₃) (≈ᵗ-trans U₁≈U₂ U₂≈U₃)
+≈ᵗ-trans (eq-fun T₁≈T₂ U₁≈U₂) (eq-fun T₂≈T₃ U₂≈U₃) =
+  eq-fun (≈ᵗ-trans T₁≈T₂ T₂≈T₃) (≈ᵗ-trans U₁≈U₂ U₂≈U₃)
+≈ᵗ-trans (eq-chan S₁≈S₂) (eq-chan S₂≈S₃) =
+  eq-chan (≈-trans S₁≈S₂ S₂≈S₃)
+
+----------------------------------------------------------------------
+-- Involution of observational stopped duality
+
+⊥sd-inv :
+  {S₁ S₂ S₃ : SType 0} →
+  S₁ ⊥sd S₂ → S₂ ⊥sd S₃ → S₁ ≈ S₃
+⊥sd'-inv :
+  {G₁ G₂ G₃ : GType 0} →
+  G₁ ⊥sd' G₂ → G₂ ⊥sd' G₃ → G₁ ≈' G₃
+
+Equiv.force (⊥sd-inv S₁⊥S₂ S₂⊥S₃) =
+  ⊥sd'-inv (StopDual.observe S₁⊥S₂) (StopDual.observe S₂⊥S₃)
+
+⊥sd'-inv (sd-transmit dd₁ T₁≈T₂ S₁⊥S₂)
+          (sd-transmit dd₂ T₂≈T₃ S₂⊥S₃)
+  rewrite COI.DualD-inv dd₁ dd₂ =
+  eq-transmit _ (≈ᵗ-trans T₁≈T₂ T₂≈T₃) (⊥sd-inv S₁⊥S₂ S₂⊥S₃)
+⊥sd'-inv (sd-choice dd₁ S₁⊥S₂) (sd-choice dd₂ S₂⊥S₃)
+  rewrite COI.DualD-inv dd₁ dd₂ =
+  eq-choice _ (λ i → ⊥sd-inv (S₁⊥S₂ i) (S₂⊥S₃ i))
+⊥sd'-inv sd-end sd-end =
+  eq-end
+
+----------------------------------------------------------------------
 -- Small exploration examples
 
 send-end : SType 0
