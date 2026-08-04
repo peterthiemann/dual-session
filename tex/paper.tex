@@ -1,0 +1,822 @@
+% EPTCS-style scaffold for a PLACES research-paper submission.
+% PLACES 2026 allowed 8 pages for research papers, excluding bibliography and
+% appendices. Keep the main body focused and put mechanization details that are
+% not needed for the core argument in the appendix.
+\documentclass[submission,copyright,creativecommons]{eptcs}
+\providecommand{\event}{PLACES 2027}
+
+\usepackage{iftex}
+\ifpdf
+  \usepackage{underscore}
+  \usepackage[T1]{fontenc}
+\else
+  \usepackage{breakurl}
+\fi
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{mathtools}
+\usepackage{placeins}
+\usepackage{cleveref}
+\usepackage{svg}
+\svgsetup{inkscapelatex=false}
+
+\usepackage{tikz}
+\usetikzlibrary{decorations.pathmorphing}
+
+\makeatletter
+\newcommand{\overdecoration}[2]{%
+  \mathpalette{\overdecoration@{#1}}{#2}%
+}
+\newcommand{\overdecoration@}[3]{%
+  \tikz[baseline=(content.base)]{
+    \node[
+      inner sep=0pt,
+      outer sep=0pt
+    ] (content) {$#2#3$};
+
+    \draw[#1]
+      ([yshift=1pt]content.north west) --
+      ([yshift=1pt]content.north east);
+  }%
+}
+\makeatother
+
+\newcommand{\overwiggle}[1]{%
+  \overdecoration{
+    decorate,
+    decoration={
+      snake,
+      amplitude=.25pt,
+      segment length=4pt
+    }
+  }{#1}%
+}
+
+\newcommand{\overdotted}[1]{%
+  \overdecoration{
+    densely dotted,
+    line cap=round,
+    line width=.35pt
+  }{#1}%
+}
+
+\newcommand{\overdashed}[1]{%
+  \overdecoration{
+    densely dashed,
+    line width=.35pt
+  }{#1}%
+}
+
+\title{Stopping Duality at $\mu$: Yet Another Approach to Recursive Session Types}
+\author{Peter Thiemann
+\institute{University of Freiburg\\Freiburg, Germany}
+\email{thiemann@informatik.uni-freiburg.de}
+}
+
+\def\titlerunning{Stopping Duality at $\mu$}
+\def\authorrunning{P. Thiemann}
+
+\newcommand{\Agda}{Agda}
+\newcommand{\AgdaHen}{\includesvg[height=0.75em]{agda}}
+\newcommand{\AgdaLink}[2]{\href{src/#1}{\mbox{\texttt{#2}\,\AgdaHen}}}
+\newcommand{\AgdaFile}[2]{\AgdaLink{#1.html}{#2}}
+\newcommand{\AgdaName}[3]{\AgdaLink{#1.html\##2}{#3}}
+\newcommand{\AgdaMathName}[3]{\href{src/#1.html\##2}{\mbox{#3\,\AgdaHen}}}
+\newcommand{\AgdaCounterparts}[1]{%
+  \par\smallskip
+  \noindent{\footnotesize\emph{Agda counterparts:} #1.}%
+  \par\smallskip
+}
+\newcommand{\Dual}{\mathsf{dual}}
+\newcommand{\End}{\mathsf{end}}
+\newcommand{\COI}{\mathsf{COI}}
+\newcommand{\IND}{\mathsf{IND}}
+\newcommand{\sem}[1]{[\![#1]\!]}
+\newcommand{\SBH}{S_{\mathsf{BH}}}
+\newcommand{\NaiveDual}[1]{\overwiggle{#1}}
+\newcommand{\SuspDual}[1]{\overline{#1}}
+\newcommand{\EqT}[1]{\mathrel{\approx_T^{#1}}}
+\newcommand{\InfDual}[1]{\mathsf{dual}_\infty(#1)}
+\newcommand{\ConvT}{\mathrel{\equiv_T}}
+\newcommand{\ConvS}{\mathrel{\equiv_S}}
+\newcommand{\MatchH}{\mathrel{\sim_H}}
+\newcommand{\Obs}{\mathrel{\Downarrow}}
+\newcommand{\CoDual}{\mathrel{\perp}}
+\newcommand{\StopDual}{\mathrel{\perp_{\mathsf{sd}}}}
+\newcommand{\HDual}{\mathsf{dual}_H}
+\newcommand{\coindrule}[2]{%
+  \vcenter{\offinterlineskip
+    \halign{\hfil$\displaystyle##$\hfil\cr
+      #1\cr
+      \noalign{\kern0.35ex\hrule height 0.35pt
+               \kern0.18ex\hrule height 0.35pt\kern0.55ex}
+      #2\cr}}}
+\newcommand{\coindaxiom}[1]{%
+  \vcenter{\offinterlineskip
+    \halign{\hfil$\displaystyle##$\hfil\cr
+      \noalign{\kern0.35ex\hrule height 0.35pt
+               \kern0.18ex\hrule height 0.35pt\kern0.55ex}
+      #1\cr}}}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+  Most presentations of recursive session types use explicit $\mu$-types with 
+  an equi-recursive interpretation.
+  Duality for these types is usually defined as a total syntactic operation on
+  session types, which has led to problems in the past.
+  This paper explores a different design: duality is defined on the observable
+  communication structure and stops at $\mu$.  The resulting presentation avoids
+  problematic interactions between duality, substitution, and unfolding.
+  We give a mechanized development of this stopped-duality approach in \Agda{}
+  and relate it to a coinductive ground-truth model.
+\end{abstract}
+
+\section{Introduction}
+\label{sec:introduction}
+
+Recursive session types are commonly written with explicit $\mu$-binders while
+being read equi-recursively: a type $\mu X.S$ is equal to its unfolding
+$S[\mu X.S/X]$, which is necessary when advancing to its next communication
+action. In binary session types, duality embodies the switch in
+perspective from client to server, swapping the direction of all
+communications.
+The first attempt defines duality as a total syntactic operation on the
+syntax, swapping inputs with outputs, selection with branching, and recursively
+descending in the body of a $\mu$-type \cite{HondaVK98}.  Write
+$\NaiveDual{(-)}$ for this naive syntactic duality; in particular,
+$
+  \NaiveDual{\mu X.S} = \mu X.\NaiveDual{S}.
+  $
+  
+Naive duality is known to be broken because of the interaction between
+duality and unrolling substitution
+\cite{LindleyM16,gay.vasconcelos:session-types}. 
+To recap the issue, consider a session type given by Bernardi and Hennessy
+\cite{BernardiH14,BernardiH16}, which receives a channel of its own type and then repeats:
+\begin{align*}
+  \SBH &= \mu X.\,?\,\mathsf{chan}(X).X&
+  &\text{and its naive syntactic dual}&
+  \NaiveDual{\SBH} &= \mu X.\,!\,\mathsf{chan}(X).X.                                      
+\end{align*}
+Unfolding $\NaiveDual{\SBH}$ and dualizing after unfolding $\SBH$ give
+different payloads:
+\[
+\begin{array}{rcll}
+\NaiveDual{\SBH}
+  &=& !\,\mathsf{chan}(\NaiveDual{\SBH}).\NaiveDual{\SBH}
+  & \text{naive duality, then unfold},\\
+\NaiveDual{(?\,\mathsf{chan}(\SBH).\SBH)}
+  &=& !\,\mathsf{chan}(\SBH).\NaiveDual{\SBH}
+  & \text{unfold first}.
+\end{array}
+\]
+While the continuation types are the same, the first payload is
+$\NaiveDual{\SBH}$ but the second is $\SBH$. This example shows that
+naive duality is incompatible with unfolding of the recursion: the payload type
+must remain the same under duality.
+
+Bernardi and Hennessy \cite{BernardiH14,BernardiH16} as well as the textbook
+\cite{gay.vasconcelos:session-types} suggest a solution based on closing the
+payload type before applying naive duality. Gay and
+others~\cite{DBLP:journals/corr/abs-2004-01322} discuss the design space for
+duality operators comparing the approaches known at that time.
+
+This paper proposes another, simple alternative, a \emph{stopped-duality
+  operator} $\SuspDual{(-)}$.
+This operator acts syntactically on the finite communication
+prefix that is visible at 
+the top level and deliberately stops at recursive binders.  For the example
+above, $\SuspDual{\SBH}$ is not reduced by a syntactic rule for $\mu$.
+Instead,
+duality can only proceed \emph{after} unfolding $\SBH$ when an observation is required; at that
+point the exposed input is dualized to an output.  Recursion is therefore
+driven by observation, rather than by a syntactic dual
+operator that traverses under $\mu$.
+
+\emph{Contributions}
+\begin{itemize}
+\item A stopped-duality operator for equi-recursive session types formalized
+  using type conversion;
+\item an \Agda{} formalization using rewrite rules for the observable duality
+  equations; and
+\item a mechanized comparison with coinductive duality representing ground truth.
+\end{itemize}
+
+\section{Session Types With Stopped Duality}
+\label{sec:session-types}
+
+We start with some standard definitions.
+Functional types $T,U$ describe payloads; they include function types and
+session-typed channels.
+Session types $S,R$ contain the usual communication actions, termination,
+variables, and recursive binders:
+\[
+\begin{array}{rcl}
+  T,U &::=& \mathbf{1}
+       \mid \mathsf{int}
+       \mid T \times U
+       \mid T \to U
+       \mid \mathsf{chan}(S),
+       \\[0.5ex]
+  S,R &::=& \End
+       \mid !T.S
+       \mid ?T.S
+       \mid \oplus\{\ell_i:S_i\}_{i \in I}
+       \mid \&\{\ell_i:S_i\}_{i \in I}
+       \mid X
+       \mid \mu X.S.
+\end{array}
+\]
+\AgdaCounterparts{indexed syntax
+\AgdaName{Types.IND1}{Type}{Type},
+\AgdaName{Types.IND1}{SType}{SType}, and
+\AgdaName{Types.IND1}{GType}{GType}; coinductive syntax
+\AgdaName{Types.COI}{Type}{Type},
+\AgdaName{Types.COI}{STypeF}{STypeF}, and
+\AgdaName{Types.COI}{SType}{SType}}
+We assume that recursive types are contractive, that is, there are no types of
+the form $\mu X_1 \dots \mu X_n.X_j$, for some $1\le j\le n$.
+
+Write $\sem{-}$ for the standard equi-recursive interpretation of closed types
+as infinite (rational) trees.  Payload constructors and communication heads are
+interpreted homomorphically; a recursive type is interpreted by unfolding it, so
+$\sem{\mu X.S} = \sem{S[\mu X.S/X]}$.  Because the notation is used only for
+closed types, the output is an infinite tree marked with the type constructors,
+but without variables $X$ and recursion operators $\mu X.S$.  We use
+calligraphic metavariables for such trees: $\mathcal T,\mathcal U$ range over
+payload-type trees and $\mathcal S,\mathcal R$ range over session-type trees.
+Plain $T,U$ and $S,R$ continue to range over syntactic $\mu$-types.
+
+\subsection{Ground Truth: Relational Duality}
+\label{sec:ground-truth}
+
+To compare the upcoming definition of stopped duality in
+\cref{sec:stopped-duality} with an extensional account, we use a coinductively
+defined ground truth.  As payload types may contain channels, equivalence is staged.
+Figure~\ref{fig:ground-duality} first defines equivalence on payload types
+inductively, parameterized by a session relation; it then instantiates that
+parameter with coinductive session equivalence and defines relational duality.
+
+\begin{figure}[tp]
+\footnotesize
+\setlength{\arraycolsep}{0.7ex}
+\noindent\textbf{1. Inductive type equivalence, parameterized by a session
+  relation $\rho$: $\mathcal T \EqT\rho \mathcal U$}
+\[
+\begin{array}{c}
+\dfrac{}{\mathbf{1} \EqT{\rho} \mathbf{1}}
+\quad
+\dfrac{}{\mathsf{int} \EqT{\rho} \mathsf{int}}
+\quad
+\dfrac{\mathcal T_1 \EqT{\rho} \mathcal U_1
+       \quad \mathcal T_2 \EqT{\rho} \mathcal U_2}
+      {\mathcal T_1 \times \mathcal T_2
+       \EqT{\rho}
+       \mathcal U_1 \times \mathcal U_2}
+\quad
+\dfrac{\mathcal T_1 \EqT{\rho} \mathcal U_1
+       \quad \mathcal T_2 \EqT{\rho} \mathcal U_2}
+      {\mathcal T_1 \to \mathcal T_2
+       \EqT{\rho}
+       \mathcal U_1 \to \mathcal U_2}
+\quad
+\dfrac{\mathcal S \mathrel{\rho} \mathcal R}
+      {\mathsf{chan}(\mathcal S)
+       \EqT{\rho}
+       \mathsf{chan}(\mathcal R)}
+\end{array}
+\]
+\vspace{-0.5ex}\hrule\vspace{1ex}
+\noindent\textbf{2. Coinductive session equivalence: $\mathcal S \approx \mathcal R$}
+\[
+\begin{array}{c}
+\coindrule{\mathcal T \EqT{\approx} \mathcal U
+           \quad \mathcal S \approx \mathcal R}
+           {!\mathcal T.\mathcal S \approx !\mathcal U.\mathcal R}
+\qquad
+\coindrule{\mathcal T \EqT{\approx} \mathcal U
+           \quad \mathcal S \approx \mathcal R}
+           {?\mathcal T.\mathcal S \approx ?\mathcal U.\mathcal R}
+\qquad
+\coindaxiom{\End \approx \End}
+\\[3ex]
+\coindrule{\forall i \in I.\ \mathcal S_i \approx \mathcal R_i}
+           {\oplus\{\ell_i:\mathcal S_i\}_{i \in I} \approx
+            \oplus\{\ell_i:\mathcal R_i\}_{i \in I}}
+\qquad
+\coindrule{\forall i \in I.\ \mathcal S_i \approx \mathcal R_i}
+           {\&\{\ell_i:\mathcal S_i\}_{i \in I} \approx
+            \&\{\ell_i:\mathcal R_i\}_{i \in I}}
+\end{array}
+\]
+\vspace{-0.5ex}\hrule\vspace{1ex}
+\noindent\textbf{3. Coinductive relational duality: $\mathcal S \CoDual \mathcal R$}
+\[
+\begin{array}{c}
+\coindrule{\mathcal T \EqT{\approx} \mathcal U
+           \quad \mathcal S \CoDual \mathcal R}
+           {!\mathcal T.\mathcal S \CoDual ?\mathcal U.\mathcal R}
+\qquad
+\coindrule{\mathcal T \EqT{\approx} \mathcal U
+           \quad \mathcal S \CoDual \mathcal R}
+           {?\mathcal T.\mathcal S \CoDual !\mathcal U.\mathcal R}
+\qquad
+\coindaxiom{\End \CoDual \End}
+\\[3ex]
+\coindrule{\forall i \in I.\ \mathcal S_i \CoDual \mathcal R_i}
+           {\oplus\{\ell_i:\mathcal S_i\}_{i \in I} \CoDual
+            \&\{\ell_i:\mathcal R_i\}_{i \in I}}
+\qquad
+\coindrule{\forall i \in I.\ \mathcal S_i \CoDual \mathcal R_i}
+           {\&\{\ell_i:\mathcal S_i\}_{i \in I} \CoDual
+            \oplus\{\ell_i:\mathcal R_i\}_{i \in I}}
+\end{array}
+\]
+\AgdaCounterparts{coinductive model
+\AgdaName{Types.COI}{EquivT}{EquivT},
+\AgdaName{Types.COI}{EquivF}{EquivF}, and
+\AgdaName{Types.COI}{Equiv}{Equiv}, with the recursive-syntax analogue
+\AgdaName{Types.IND1}{EquivT}{EquivT},
+\AgdaName{Types.IND1}{EquivG}{EquivG}, and
+\AgdaName{Types.IND1}{Equiv}{Equiv}; ground relation
+\AgdaName{Types.COI}{DualD}{DualD},
+\AgdaName{Types.COI}{DualF}{DualF}, and
+\AgdaName{Types.COI}{Dual}{Dual}}
+\caption{Equivalence and relational duality in the coinductive model.
+Payload equivalence is inductive and parameterized by a session relation.
+Session equivalence and relational duality are coinductive; the double-line
+rules are read coinductively.}
+\label{fig:equivalence}
+\label{fig:ground-duality}
+\end{figure}
+
+%\FloatBarrier
+The coinductive model also admits a dual operator $\InfDual{\mathcal S}$,
+which works on session-type trees.  It is defined corecursively by swapping
+the visible direction on prefixes, for example:
+\[
+\begin{array}{rclcrcl}
+\InfDual{!\mathcal T.\mathcal S}
+  &=& ?\mathcal T.\InfDual{\mathcal S},
+&\qquad&
+\InfDual{?\mathcal T.\mathcal S}
+  &=& !\mathcal T.\InfDual{\mathcal S}.
+\end{array}
+\]
+It also exchanges selection and branching pointwise and maps $\End$ to
+$\End$.  Payload types are left unchanged.
+Thus $\CoDual$ and $\InfDual{-}$ are relational and functional presentations
+of the same coinductive notion, up to session equivalence $\approx$.
+
+\subsection{Stopped Duality}
+\label{sec:stopped-duality}
+
+We add stopped duality to the syntax of session types.
+\[
+\begin{array}{rcl}
+S,R &::=& \cdots \mid \SuspDual{S}
+\end{array}
+\]
+\AgdaCounterparts{stopped duality
+\AgdaName{DualStopAtMu}{dualS}{dualS} on session terms and
+\AgdaName{DualStopAtMu}{dualG}{dualG} on communication heads}
+Figure~\ref{fig:conversion} defines the meaning of the operator by type
+conversion.
+We write $T \ConvT U$ for payload conversion
+and $S \ConvS R$ for session conversion.  Both judgments provide inductive
+definitions for congruence relations.  Payload conversion calls session
+conversion at channel types; session conversion calls payload conversion at
+input and output prefixes.
+\AgdaCounterparts{syntactic conversion judgments
+\AgdaName{Conversion}{ConvT}{ConvT} for payloads and
+\AgdaName{Conversion}{ConvS}{ConvS} for sessions}
+
+\begin{figure}[tp]
+\footnotesize
+\setlength{\arraycolsep}{0.7ex}
+\setlength{\abovedisplayskip}{0.5ex}
+\setlength{\belowdisplayskip}{0.5ex}
+\setlength{\abovedisplayshortskip}{0.5ex}
+\setlength{\belowdisplayshortskip}{0.5ex}
+\noindent\textbf{1. Type conversion: $T \ConvT U$}
+\[
+\begin{array}{c}
+\dfrac{}{\mathbf{1} \ConvT \mathbf{1}}
+\quad
+\dfrac{}{\mathsf{int} \ConvT \mathsf{int}}
+\quad
+\dfrac{T_1 \ConvT U_1 \quad T_2 \ConvT U_2}
+      {T_1 \times T_2 \ConvT U_1 \times U_2}
+\quad
+\dfrac{T_1 \ConvT U_1 \quad T_2 \ConvT U_2}
+      {T_1 \to T_2 \ConvT U_1 \to U_2}
+\quad
+\dfrac{S \ConvS R}
+      {\mathsf{chan}(S) \ConvT \mathsf{chan}(R)}
+\end{array}
+\]
+\vspace{-0.5ex}\hrule\vspace{1ex}
+\noindent\textbf{2. Session conversion: $S \ConvS R$}
+\[
+\begin{array}{c}
+\dfrac{}{S \ConvS S}
+\quad
+\dfrac{S \ConvS R}{R \ConvS S}
+\quad
+\dfrac{S \ConvS R \quad R \ConvS Q}{S \ConvS Q}
+\quad
+\dfrac{S \ConvS R}{\SuspDual{S} \ConvS \SuspDual{R}}
+\quad
+\dfrac{}{\mu X.S \ConvS S[\mu X.S/X]}
+\\[3ex]
+\dfrac{T \ConvT U \quad S \ConvS R}{!T.S \ConvS !U.R}
+\quad
+\dfrac{T \ConvT U \quad S \ConvS R}{?T.S \ConvS ?U.R}
+\qquad
+\dfrac{\forall i \in I.\ S_i \ConvS R_i}
+      {\oplus\{\ell_i:S_i\}_{i \in I} \ConvS
+       \oplus\{\ell_i:R_i\}_{i \in I}}
+\quad
+\dfrac{\forall i \in I.\ S_i \ConvS R_i}
+      {\&\{\ell_i:S_i\}_{i \in I} \ConvS
+       \&\{\ell_i:R_i\}_{i \in I}}
+\end{array}
+\]
+\vspace{-0.5ex}\hrule\vspace{1ex}
+\noindent\textbf{3. Stopped-duality conversion axioms}
+\begin{align*}
+  \SuspDual{\End} &\ConvS \End
+  & \SuspDual{!T.S} &\ConvS ?T.\SuspDual{S}
+  & \SuspDual{?T.S} &\ConvS !T.\SuspDual{S}
+  & \SuspDual{\oplus\{\ell_i:S_i\}_{i \in I}}
+  &\ConvS \&\{\ell_i:\SuspDual{S_i}\}_{i \in I}
+  & \SuspDual{\&\{\ell_i:S_i\}_{i \in I}}
+  &\ConvS \oplus\{\ell_i:\SuspDual{S_i}\}_{i \in I}
+\end{align*}
+\AgdaCounterparts{duality rewrite rules
+\AgdaName{DualStopAtMu}{dual-gdd}{dual-gdd},
+\AgdaName{DualStopAtMu}{dual-transmit}{dual-transmit},
+\AgdaName{DualStopAtMu}{dual-choice}{dual-choice}, and
+\AgdaName{DualStopAtMu}{dual-end}{dual-end}; conversion witnesses
+\AgdaName{Conversion}{ConvS.conv-dual-transmit}{conv-dual-transmit},
+\AgdaName{Conversion}{ConvS.conv-dual-choice}{conv-dual-choice}, and
+\AgdaName{Conversion}{ConvS.conv-dual-end}{conv-dual-end}}
+\caption{Conversion for stopped-duality session types.  Compartment 3 is the
+only computational content of suspended duality.}
+\label{fig:conversion}
+\end{figure}
+
+%\FloatBarrier
+No conversion axiom applies directly to $\SuspDual{\mu X.S}$ or $\SuspDual{X}$.
+To obtain the dual of a recursive type, conversion first unfolds by
+congruence and then applies a head-duality axiom.  For the
+Bernardi-Hennessy example,
+\[
+\SuspDual{\SBH}
+  \ConvS
+\SuspDual{?\,\mathsf{chan}(\SBH).\SBH}
+  \ConvS
+!\,\mathsf{chan}(\SBH).\SuspDual{\SBH},
+\]
+thus the payload remains $\SBH$. Conversion exposes the
+communication structure on demand.
+
+Figure~\ref{fig:duality} defines the observational relation induced by
+stopped duality.  It observes the stopped dual $\SuspDual{S}$ and matches the
+resulting communication head against the other endpoint.
+
+\begin{figure}[tp]
+\footnotesize
+\setlength{\arraycolsep}{0.7ex}
+\noindent\textbf{1. Sessions in head normal form $H, K$ and head duality: $\HDual(H)=S$}
+\begin{align*}
+H,K &::= \End \mid !T.S \mid ?T.S
+      \mid \oplus\{\ell_i:S_i\}_{i \in I}
+      \mid \&\{\ell_i:S_i\}_{i \in I}
+\end{align*}
+\begin{align*}
+\HDual(\End) &= \End &
+\HDual(!T.S) &= ?T.\SuspDual{S} &
+\HDual(\oplus\{\ell_i:S_i\}_{i \in I}) &=
+  \&\{\ell_i:\SuspDual{S_i}\}_{i \in I} \\
+&&
+\HDual(?T.S) &= !T.\SuspDual{S} &
+\HDual(\&\{\ell_i:S_i\}_{i \in I}) &=
+  \oplus\{\ell_i:\SuspDual{S_i}\}_{i \in I}
+\end{align*}
+\vspace{-0.5ex}\hrule\vspace{1ex}
+\noindent\textbf{2. Head matching of stopped-duality terms: $S \MatchH H$}
+\[
+\begin{array}{c}
+\dfrac{}{H \Obs H}
+\qquad
+\dfrac{S_0[\mu X.S_0/X] \Obs H}
+      {\mu X.S_0 \Obs H}
+\qquad
+\dfrac{S \Obs H}
+      {\SuspDual{S} \Obs \HDual(H)}
+\end{array}
+\]
+\vspace{-0.5ex}\hrule\vspace{1ex}
+\noindent\textbf{3. Observational duality induced by stopped duality: $S
+  \StopDual R$}
+\[
+\begin{array}{c}
+\dfrac{}{\End \MatchH \End}
+\qquad
+\dfrac{T \EqT{\approx} U \quad S \StopDual R}
+      {!T.S \MatchH !U.R}
+\qquad
+\dfrac{T \EqT{\approx} U \quad S \StopDual R}
+      {?T.S \MatchH ?U.R}
+\\[3ex]
+\dfrac{\forall i \in I.\ S_i \StopDual R_i}
+      {\oplus\{\ell_i:S_i\}_{i \in I} \MatchH
+       \oplus\{\ell_i:R_i\}_{i \in I}}
+\qquad
+\dfrac{\forall i \in I.\ S_i \StopDual R_i}
+      {\&\{\ell_i:S_i\}_{i \in I} \MatchH
+       \&\{\ell_i:R_i\}_{i \in I}}
+\\[3ex]
+\coindrule{\SuspDual{S} \Obs H
+           \quad R \Obs K
+          \quad H \MatchH K}
+          {S \StopDual R}
+\end{array}
+\]
+\AgdaCounterparts{unfolding
+\AgdaName{Types.IND1}{unfold}{unfold} and stopped duality
+\AgdaName{DualStopAtMu}{StopDualG}{StopDualG} and
+\AgdaName{DualStopAtMu}{StopDual}{StopDual}}
+\caption{Stopped duality.  Observation unfolds recursive types before
+$\HDual$ switches the visible action.  The head-matching relation $\MatchH$
+compares payloads with type equivalence from Figure~\ref{fig:equivalence} and
+continues coinductively through $\StopDual$.}
+\label{fig:duality}
+\end{figure}
+
+%\FloatBarrier
+\subsection{Comparison}
+\label{sec:comparison}
+
+Conversion and equivalence have different roles.  Figure~\ref{fig:conversion}
+defines conversion $\ConvT,\ConvS$ as a syntactic equality judgment for the
+extended grammar with suspended duals; it includes $\mu$-unfolding and the
+stopped-duality axioms and is intended for type checking.  The parameterized
+equivalence $\EqT{\rho}$ and its coinductive session instance $\approx$ are
+extensional relations used to compare behavior after interpretation.  Their
+connection is semantic soundness.
+\begin{theorem}[conversion soundness]
+\label{thm:conversion-soundness}
+For all closed extended payload types $T,U$ and closed extended session types
+$S,R$,
+\begin{align*}
+T \ConvT U
+  &\Longrightarrow \sem{T} \EqT{\approx} \sem{U},
+  &
+S \ConvS R
+  &\Longrightarrow \sem{S} \approx \sem{R}.
+\end{align*}
+\end{theorem}
+\AgdaCounterparts{conversion soundness
+\AgdaName{Conversion}{convT-sound}{convT-sound} and
+\AgdaName{Conversion}{convS-sound}{convS-sound}; duality congruence
+\AgdaName{Conversion}{dual-cong}{dual-cong}; unrolling adequacy
+\AgdaName{Conversion}{unroll-sound}{unroll-sound}; definitional adequacy
+\AgdaName{Conversion}{dual-transmit-adequacy}{dual-transmit-adequacy},
+\AgdaName{Conversion}{dual-choice-adequacy}{dual-choice-adequacy}, and
+\AgdaName{Conversion}{dual-end-adequacy}{dual-end-adequacy}}
+The inductive conversion judgment is not complete for regular-tree
+equality.  For example, coinductive stopped duality can relate
+$S_1 = \mu X.?\,\mathsf{Unit}.X$ to
+$S_2 = \mu X.! \,\mathsf{Unit}.! \,\mathsf{Unit}.X$, but $\SuspDual{S_1}$ is not
+convertible to $S_2$: the observation repeats
+coinductively after one step on the left and two on the right.
+\AgdaCounterparts{counterexample
+\AgdaName{Examples}{ConversionCounterexample.recv-loop}{recv-loop} and
+\AgdaName{Examples}{ConversionCounterexample.send-loop2}{send-loop2};
+\AgdaName{Examples}{ConversionCounterexample.dual-recv-loop-step}{dual-step}
+and \AgdaName{Examples}{ConversionCounterexample.send-loop2-step}{send-step};
+\AgdaName{Examples}{ConversionCounterexample.recv-loop-dual-send-loop2}
+{sd-proof} and
+\AgdaName{Examples}{ConversionCounterexample.recv-loop-dual-send-loop2-coi}
+{coi-proof}}
+
+
+The stopped relation, the coinductive ground truth, and the stopped-duality
+operator coincide on closed session types.
+\begin{theorem}[master comparison]
+\label{thm:master-comparison}
+For all closed session types $S$ and $R$, the following statements are
+equivalent:
+\[
+\begin{array}{ll}
+\mathrm{(i)}   & S \StopDual R,\\[0.35ex]
+\mathrm{(ii)}  & \sem{S} \CoDual \sem{R},\\[0.35ex]
+\mathrm{(iii)} & \InfDual{\sem{S}} \approx \sem{R},\\[0.35ex]
+\mathrm{(iv)}  & \sem{\SuspDual{S}} \approx \sem{R}.
+\end{array}
+\]
+\end{theorem}
+\AgdaCounterparts{the fields
+\AgdaName{ConversionStopDualSoundness}{MasterComparison.sd-coi}{sd-coi},
+\AgdaName{ConversionStopDualSoundness}{MasterComparison.sd-functional}{sd-functional},
+and
+\AgdaName{ConversionStopDualSoundness}{MasterComparison.sd-stopped-coi}{sd-stopped-coi}
+of the record
+\AgdaName{ConversionStopDualSoundness}{MasterComparison}{MasterComparison}, with
+proof \AgdaName{ConversionStopDualSoundness}{master-comparison}{master-comparison}}
+The equivalence between (i) and (ii) calibrates observational stopped duality
+against the coinductive relation.  Statement (iii) replaces relational
+duality by the functional coinductive dual.  Statement (iv) says that the
+stopped operator denotes the same coinductive dual.
+
+%\FloatBarrier
+\section{Examples}
+\label{sec:examples}
+
+The module \AgdaFile{Examples}{Examples} collects small communication examples
+and the legacy counterexample that motivated the design.  These examples are
+intended to serve two roles in the paper: compact sanity checks for the
+proposed operation, such as \AgdaName{Examples}{stopped-send-end}{stopped-send-end}
+and \AgdaName{Examples}{stopped-bh}{stopped-bh}, and evidence that the stopped
+presentation avoids an otherwise awkward duality-substitution interaction,
+captured by \AgdaName{Examples}{SubstitutionDualCounterexample.bh-not-involutive}{bh-not-involutive}.
+
+
+
+\section{Mechanization}
+\label{sec:mechanization}
+
+The presentation of types and session types in the mechanization relies on de
+Bruijn indices to represent variables, it separates session and branching
+structure, and enforces contractiveness of recursive types by construction.
+Identifiers marked by \AgdaHen{} link to generated \Agda{} HTML.  The links
+resolve when the accompanying archive is unpacked next to the PDF, creating a
+sibling directory \texttt{src/}.
+
+The mechanization represents the stopped-duality conversion axioms as rewrite
+rules for \AgdaName{DualStopAtMu}{dualS}{dualS} and
+\AgdaName{DualStopAtMu}{dualG}{dualG}.  The formal soundness proof proceeds by
+induction on \AgdaName{Conversion}{ConvT}{ConvT} and
+\AgdaName{Conversion}{ConvS}{ConvS}.  The stopped-duality cases are discharged
+by definitional equality before the semantic comparison is applied; the
+$\mu$-rule uses the adequacy of syntactic unrolling for the stack
+interpretation.  The remaining difference is structural: conversion is an
+inductive syntactic judgment with explicit rules for suspended duals, whereas
+equivalence is coinductive, parameterized by a session relation, and stated
+after interpretation.
+
+
+Figure~\ref{fig:ground-duality} has a direct counterpart in
+\AgdaFile{Types.COI}{Types.COI}: \AgdaName{Types.COI}{DualD}{DualD} relates
+opposite directions, \AgdaName{Types.COI}{DualF}{DualF} relates one layer of
+communication structure, and the coinductive record
+\AgdaName{Types.COI}{Dual}{Dual} defines the relation $\CoDual$.  The same
+module implements the auxiliary relations from Figure~\ref{fig:equivalence}
+as \AgdaName{Types.COI}{EquivT}{EquivT},
+\AgdaName{Types.COI}{EquivF}{EquivF}, and
+\AgdaName{Types.COI}{Equiv}{Equiv}.
+
+The module \AgdaFile{DualStopAtMu}{DualStopAtMu} postulates the stopped
+operators \AgdaName{DualStopAtMu}{dualS}{dualS} and
+\AgdaName{DualStopAtMu}{dualG}{dualG} and gives their observable equations as
+rewrite rules for the \AgdaName{DualStopAtMu}{dual-transmit}{transmit},
+\AgdaName{DualStopAtMu}{dual-choice}{choice}, and
+\AgdaName{DualStopAtMu}{dual-end}{end} cases.  Additional force equations for
+\AgdaName{DualStopAtMu}{dual-rec-force}{rec} and
+\AgdaName{DualStopAtMu}{dual-var-force}{var} expose the behavior at recursive
+binders and variables after interpretation in the coinductive model.
+The theorem \AgdaName{DualStopAtMu}{ground}{ground} supplies the equivalence
+between statements (iii) and (iv) in Theorem~\ref{thm:master-comparison}.
+
+The module \AgdaFile{Conversion}{Conversion} gives the syntactic conversion
+judgments \AgdaName{Conversion}{ConvT}{ConvT} and
+\AgdaName{Conversion}{ConvS}{ConvS}.  Its soundness proof is split into
+\AgdaName{Conversion}{convT-sound}{convT-sound} for payload conversion and
+\AgdaName{Conversion}{convS-sound}{convS-sound} for session conversion.  The
+stopped-duality conversion axioms are also exposed as definitional adequacy
+lemmas such as
+\AgdaName{Conversion}{dual-transmit-adequacy}{dual-transmit-adequacy}.
+
+The module \AgdaFile{DualStopAtMu}{DualStopAtMu} also packages the
+observational relation from
+Figure~\ref{fig:duality} as the separately named coinductive record
+\AgdaName{DualStopAtMu}{StopDual}{StopDual},
+with operator notation corresponding to $\StopDual$.  Its observation field
+unfolds both closed endpoints and returns one
+\AgdaName{DualStopAtMu}{StopDualG}{StopDualG} layer.  The constructors
+\AgdaName{DualStopAtMu}{StopDualG.sd-transmit}{sd-transmit},
+\AgdaName{DualStopAtMu}{StopDualG.sd-choice}{sd-choice}, and
+\AgdaName{DualStopAtMu}{StopDualG.sd-end}{sd-end} fuse the observation and
+head-matching parts of the figure: they require opposite visible directions,
+equivalent payload types, and recursively
+\AgdaName{DualStopAtMu}{StopDual}{StopDual}-related continuations.  It also
+provides symmetry
+\AgdaMathName{DualStopAtMu}{2574}{$\mathsf{symm}$} and inversion
+\AgdaMathName{DualStopAtMu}{4133}{$\mathsf{inv}$} lemmas.
+
+The Agda file \AgdaFile{StopDualSoundness}{SDS} mechanizes the equivalence
+between statements (i) and (ii) in Theorem~\ref{thm:master-comparison}.
+The main technical bridge,
+\AgdaName{StopDualSoundness}{unfold-sound}{unfold-sound}, identifies
+syntactic one-step unfolding with forcing the stack interpretation.  The
+one-step forms are \AgdaName{StopDualSoundness}{sd-soundG}{sd-soundG} and
+\AgdaName{StopDualSoundness}{sd-completeG}{sd-completeG}.  The soundness
+direction is organized by the auxiliary coalgebras
+\AgdaName{StopDualSoundness}{EqRel}{EqRel} and
+\AgdaName{StopDualSoundness}{SdRel}{SdRel}; these relations close the proof
+under coinductive equivalence and duality while allowing intermediate
+equivalence transports.  The completeness direction uses
+\AgdaName{StopDualSoundness}{EqCompleteRel}{EqCompleteRel} and
+\AgdaName{StopDualSoundness}{SdCompleteRel}{SdCompleteRel} to reflect the
+coinductive observations back to the syntactic relation.  Its payload case
+depends on \AgdaName{StopDualSoundness}{equiv-completeT}{equiv-completeT},
+because stopped duality stores payload comparison in the inductive syntax
+whereas the ground-truth relation produces payload equivalence after
+interpretation.
+
+The comparison file \AgdaFile{ConversionStopDualSoundness}{CSDS} packages the
+link between conversion and observational stopped duality.  The theorem
+\AgdaName{ConversionStopDualSoundness}{conv-dual-sound-sd}{conv-dual-sound-sd}
+derives $S \StopDual R$ from a conversion proof
+$\SuspDual{S} \ConvS R$.  The formalization also proves a closed-syntax
+reflection result, recorded as
+\AgdaName{ConversionStopDualSoundness}{MasterComparison.sd-stopped-syntax}{sd-stopped-syntax}.
+It combines
+\AgdaName{StopDualSoundness}{sd-sound}{sd-sound}, the coinductive
+functional/relational duality lemma
+\AgdaName{Types.COI}{dual-completeS}{dual-completeS}, the ground theorem
+\AgdaName{DualStopAtMu}{ground}{ground}, soundness and reflection of
+syntactic equivalence through
+\AgdaName{StopDualSoundness}{equiv-soundS}{equiv-soundS} and
+\AgdaName{StopDualSoundness}{equiv-completeS}{equiv-completeS}, and transport
+of coinductive duality along equivalence.  The
+\AgdaName{ConversionStopDualSoundness}{MasterComparison}{record} and
+\AgdaName{ConversionStopDualSoundness}{master-comparison}{proof}
+package the components of Theorem~\ref{thm:master-comparison} together with
+this extra syntactic component.
+
+The mechanization also contains full renamings and simultaneous substitutions
+for the de Bruijn representation in \AgdaFile{Types.IND1}{Types.IND1}.
+Renamings are represented by \AgdaName{Types.IND1}{Ren}{Ren} and implemented
+by \AgdaName{Types.IND1}{renameS}{renameS},
+\AgdaName{Types.IND1}{renameG}{renameG}, and
+\AgdaName{Types.IND1}{renameT}{renameT}; simultaneous substitutions are
+represented by \AgdaName{Types.IND1}{Sub}{Sub} and implemented by
+\AgdaName{Types.IND1}{substS}{substS},
+\AgdaName{Types.IND1}{substG}{substG}, and
+\AgdaName{Types.IND1}{substT}{substT}.  Every type representation now
+contains the arrow constructor \texttt{TFun}; the constructor is covered by
+renaming, substitution, embeddings between representations, type equivalence
+and its proofs, message closure, and congruence contexts.
+
+
+\section{Related Work}
+\label{sec:related-work}
+
+Session-type duality goes back to the standard binary-session account and its
+subtyping variants~\cite{gay-hole-subtyping}.  The present work is not a new
+session calculus, but a mechanized design note about where the duality operator
+should be defined in the presence of recursive types.
+
+\section{Conclusion}
+\label{sec:conclusion}
+
+Stopping duality at $\mu$ turns recursive unfolding into a responsibility of
+observation, rather than a burden on syntactic duality.  Equivalence remains
+an auxiliary tool for payloads and for comparing the results extensionally;
+the primary comparison is between coinductive duality and duality induced by
+the stopped operator.
+
+\bibliographystyle{eptcs}
+\bibliography{references}
+
+\appendix
+
+\section{Mechanization Map}
+
+The main files in the current development are:
+\begin{itemize}
+\item \AgdaFile{Types.IND1}{Types/IND1.agda}: indexed syntax with renamings
+  and substitutions;
+\item \AgdaFile{Types.COI}{Types/COI.agda}: coinductive ground-truth model;
+\item \AgdaFile{DualStopAtMu}{DualStopAtMu.agda}: stopped duality and ground
+  comparison;
+\item \AgdaFile{Conversion}{Conversion.agda}: syntactic conversion judgments
+  and conversion soundness;
+\item \AgdaFile{StopDualSoundness}{StopDualSoundness.agda}: soundness and
+  completeness of stopped duality with respect to coinductive duality;
+\item \AgdaFile{ConversionStopDualSoundness}{conversion bridge}: conversion,
+  stopped duality, and equivalence; and
+\item \AgdaFile{Examples}{Examples.agda}: extracted examples and
+  counterexamples.
+\end{itemize}
+
+\end{document}

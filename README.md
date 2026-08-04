@@ -24,6 +24,11 @@ HTML bundle are in `tex/`.
 - `src/Conversion.agda` defines the syntactic conversion judgment used in the
   paper and proves conversion soundness.  The renaming and substitution
   soundness proofs use explicit coalgebras, avoiding `TERMINATING` pragmas.
+- `src/ConversionStopDualSoundness.agda` connects conversion of a stopped-dual
+  term with observational stopped duality.
+- `src/ConversionCompletenessCounterexample.agda` gives the period-collapse
+  example `μX.?X` versus `μX.!!X`, showing the shape that blocks the converse
+  completeness direction for conversion.
 - `src/Examples.agda` collects useful examples from the older exploratory
   modules, including the Bernardi-Hennessy-shaped counterexample for naive
   syntactic duality.
@@ -39,7 +44,10 @@ The focused development can be checked with:
 
 ```sh
 agda -i src src/Conversion.agda
+agda -i src src/ConversionCompletenessCounterexample.agda
+agda -i src src/ConversionStopDualSoundness.agda
 agda -i src src/DualStopAtMu.agda
+agda -i src src/StopDualSoundness.agda
 agda -i src src/Examples.agda
 ```
 

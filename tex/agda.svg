@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1200px" height="1000px" viewBox="-25 -25 1250 1050" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <title>Agda hen</title>
+  <desc>Hen-only derivative of Agda's official logo by the Agda Community / Mietek Bak.</desc>
+  <!-- Source: https://commons.wikimedia.org/wiki/File:Agda%27s_official_logo.svg
+       License: BSD license inherited from the Agda project. -->
+  <g id="logo" fill="none" fill-rule="evenodd">
+    <circle id="left-eye" fill="#000000" cx="240" cy="270" r="27"/>
+    <circle id="right-eye" fill="#000000" cx="340" cy="270" r="27"/>
+    <path d="M1000,0 L600,400" id="wing" stroke="#000000" stroke-width="36" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M1200,100 L1000,300" id="tail-middle" stroke="#000000" stroke-width="36" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M1200,0 L1000,200" id="tail-top" stroke="#000000" stroke-width="36" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M500,0 L300,200" id="head-middle" stroke="#000000" stroke-width="36" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M600,0 L400,200" id="head-right" stroke="#000000" stroke-width="36" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400,-2.84217094e-13 L0,400 L200,400 L200,600 C200,820 380,1000 600,1000 C820,1000 1000,820 1000,600 L1000,400 L1200,200" id="body" stroke="#000000" stroke-width="36" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

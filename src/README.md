@@ -24,6 +24,27 @@ model.
   `SubRel`) behind the public facade lemmas `rename-soundS/G/T`,
   `lookupSub`, and `subst-soundS/G/T`.
 
+- `StopDualSoundness.agda`
+  Compares observational stopped duality with the coinductive relational
+  duality in `Types.COI`.  It proves `sd-sound` and `sd-complete`, relating
+  `S ⊥sd R` exactly to duality of the stack interpretations.  The proof uses
+  explicit coalgebras for syntactic equivalence, semantic equivalence
+  reflection, and stopped-duality observations.
+
+- `ConversionStopDualSoundness.agda`
+  Bridges the syntactic conversion presentation of stopped duality with the
+  observational relation.  It proves `conv-dual-sound-sd`, deriving
+  `S ⊥sd R` from a conversion proof that `dualS S` converts to `R`.  It also
+  proves both directions of the equivalence-level characterization relating
+  `S ⊥sd R` and syntactic equivalence between `dualS S` and `R`, and packages
+  the main comparison results as `master-comparison`.
+
+- `ConversionCompletenessCounterexample.agda`
+  Records the period-collapse example behind the failure of the converse
+  completeness direction for conversion.  The module proves observational
+  stopped duality for `μX.?X` and `μX.!!X`; a finite conversion proof from
+  `dualS (μX.?X)` to `μX.!!X` would have to solve the same obligation again.
+
 - `Examples.agda`
   Collects small examples that are useful for the paper and for regression
   checking.  These include message-closure examples, stopped-duality examples,

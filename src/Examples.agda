@@ -10,7 +10,10 @@ open import Relation.Nullary using (yes; no)
 
 open import Types.Direction
 import Types.IND1 as IND
+import Types.COI as COI
 import Types.Tail1 as Tail
+import Conversion as Conv
+import ConversionCompletenessCounterexample as ConvCE
 import MessageClosure as MC
 import DualStopAtMu as Stop
 
@@ -78,6 +81,45 @@ stopped-bh-body :
     (IND.transmit RCV (IND.TChan (IND.var zero)) (IND.var zero)) ≡
   IND.transmit SND (IND.TChan (IND.var zero)) (Stop.dualS {n = Nat.suc Nat.zero} (IND.var zero))
 stopped-bh-body = Stop.bh-body-dual
+
+----------------------------------------------------------------------
+-- Counterexample to the converse of conversion soundness.
+--
+-- The conversion rules are sound with respect to the coinductive semantics,
+-- but they do not derive every coinductive equality between regular trees.
+-- These aliases expose the counterexample from
+-- ConversionCompletenessCounterexample through the Examples module used by
+-- the paper.
+
+module ConversionCounterexample where
+
+  recv-loop : IND.SType 0
+  recv-loop = ConvCE.recv-loop
+
+  send-loop2 : IND.SType 0
+  send-loop2 = ConvCE.send-loop₂
+
+  dual-recv-loop-step :
+    Conv.ConvS
+      (Stop.dualS recv-loop)
+      (IND.gdd (IND.transmit SND IND.TUnit (Stop.dualS recv-loop)))
+  dual-recv-loop-step = ConvCE.dual-recv-loop-step
+
+  send-loop2-step :
+    Conv.ConvS
+      send-loop2
+      (IND.gdd
+        (IND.transmit SND IND.TUnit
+          (IND.gdd (IND.transmit SND IND.TUnit send-loop2))))
+  send-loop2-step = ConvCE.send-loop₂-step
+
+  recv-loop-dual-send-loop2 :
+    recv-loop Stop.⊥sd send-loop2
+  recv-loop-dual-send-loop2 = ConvCE.recv-loop⊥sd-send-loop₂
+
+  recv-loop-dual-send-loop2-coi :
+    Conv.semS recv-loop COI.⊥ Conv.semS send-loop2
+  recv-loop-dual-send-loop2-coi = ConvCE.recv-loop⊥coi-send-loop₂
 
 ----------------------------------------------------------------------
 -- Counterexample extracted from the legacy DualSubst development.
