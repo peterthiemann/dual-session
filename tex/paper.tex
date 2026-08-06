@@ -662,7 +662,7 @@ resolve when the accompanying archive is unpacked next to the PDF, creating a
 sibling directory \texttt{src/}.
 
 The mechanization represents the stopped-duality conversion axioms as rewrite
-rules for \AgdaName{DualStopAtMu}{dualS}{dualS} and
+rules \cite{cockx:LIPIcs.TYPES.2019.2,10.1145/3434341} for \AgdaName{DualStopAtMu}{dualS}{dualS} and
 \AgdaName{DualStopAtMu}{dualG}{dualG}.  The formal soundness proof proceeds by
 induction on \AgdaName{Conversion}{ConvT}{ConvT} and
 \AgdaName{Conversion}{ConvS}{ConvS}.  The stopped-duality cases are discharged
@@ -781,19 +781,71 @@ and its proofs, message closure, and congruence contexts.
 \section{Related Work}
 \label{sec:related-work}
 
-Session-type duality goes back to the standard binary-session account and its
-subtyping variants~\cite{gay-hole-subtyping}.  The present work is not a new
-session calculus, but a mechanized design note about where the duality operator
-should be defined in the presence of recursive types.
+Binary session types originate in the work of Honda and collaborators
+\cite{DBLP:conf/concur/Honda93,TakeuchiHK94,HondaVK98}.  In this setting,
+duality is the operation that turns the server view of a endpoint into the
+client view.  Later work on binary-session subtyping 
+\cite{GayH99,gay-hole-subtyping,Vasconcelos12} refines the behavioral
+preorder on endpoints, but still relies on compatibility with
+duality.  The present paper is orthogonal to the design of a process calculus
+or subtyping system: it isolates the definition of duality for recursive
+session types with higher-order channel payloads.
+
+The difficulty addressed here is the interaction between syntactic duality and
+equi-recursive unfolding.  The traditional definition descends through a
+recursive binder, for example by setting
+$\NaiveDual{\mu X.S} = \mu X.\NaiveDual{S}$ \cite{HondaVK98}.  Bernardi and
+Hennessy exhibited the counterexample used in the introduction in their work on
+higher-order contracts for session types \cite{BernardiH14,BernardiH16}.  The
+same issue is discussed by Lindley and Morris in the setting of structurally
+recursive session programming \cite{LindleyM16}, where recursion variables are
+annotated with polarities.  Bernardi and Hennessy and the recent textbook of
+Gay and Vasconcelos \cite{gay.vasconcelos:session-types} take a different
+route: they avoid dualizing open occurrences in channel payloads, typically by
+closing the type before duality is applied.
+
+Gay, Thiemann, and Vasconcelos surveyed this design space in ``Duality of
+Session Types: The Final Cut'' \cite{DBLP:journals/corr/abs-2004-01322}.  That
+paper compares syntactic duality operators and duality relations for recursive
+session types and identifies formulations that avoid the Bernardi-Hennessy
+failure.  Stopped duality gives a different presentation of the same problem:
+instead of repairing the traversal under $\mu$, it removes that traversal from
+the duality operator.  Duality is reduced only at observable communication
+heads, while recursive unfolding is handled by conversion and by the
+coinductive observation relation.  The comparison theorem in
+\cref{sec:comparison} shows that this presentation agrees with the
+coinductive ground truth.
+
+There is also related work on defining duality directly as a relation.
+Bernardi, Dardha, Gay, and Kouzapas study duality relations for session types
+\cite{BernardiDGK14}.  The coinductive relation $\CoDual$ used here is in that
+spirit: it is a relational specification of peer behavior over infinite
+session trees.  The stopped-duality operator provides a simple approach that we
+prove correct with respect to the relation.
+
+The mechanized part follows standard representations of binding with de Bruijn
+indices and simultaneous substitutions, but its proof obligations are shaped
+by equi-recursive interpretation.  The Agda formalization \cite{agda} uses
+rewrite rules \cite{cockx:LIPIcs.TYPES.2019.2,10.1145/3434341} for the computational cases of stopped duality and coinductive
+records for the infinite-tree model.  Thus, we obtain executable conversion
+principles for the finite syntax and a mechanically checked bridge to the
+coinductive semantics.
 
 \section{Conclusion}
 \label{sec:conclusion}
 
-Stopping duality at $\mu$ turns recursive unfolding into a responsibility of
-observation, rather than a burden on syntactic duality.  Equivalence remains
-an auxiliary tool for payloads and for comparing the results extensionally;
-the primary comparison is between coinductive duality and duality induced by
-the stopped operator.
+Stopped duality is a new alternative presentation of duality for equi-recursive
+session types with higher-order channels.  Its computation is confined
+to observable communication heads; recursive types are unfolded through
+conversion and observation.  Stopped duality is equivalent to other sound
+definitions and it gives rise to an elegant mechanization in a proof assistant
+like Agda that supports rewriting.
+
+The Agda development validates stopped duality against a coinductive
+ground-truth model.  The master comparison theorem relates observational
+stopped duality, relational coinductive duality, the functional coinductive
+dual, and the interpretation of stopped duality.  Conversion soundness is a
+foundation for type-checking.
 
 \bibliographystyle{eptcs}
 \bibliography{references}
@@ -802,21 +854,44 @@ the stopped operator.
 
 \section{Mechanization Map}
 
-The main files in the current development are:
+The current development consists of the following files:
 \begin{itemize}
-\item \AgdaFile{Types.IND1}{Types/IND1.agda}: indexed syntax with renamings
-  and substitutions;
-\item \AgdaFile{Types.COI}{Types/COI.agda}: coinductive ground-truth model;
-\item \AgdaFile{DualStopAtMu}{DualStopAtMu.agda}: stopped duality and ground
-  comparison;
-\item \AgdaFile{Conversion}{Conversion.agda}: syntactic conversion judgments
-  and conversion soundness;
-\item \AgdaFile{StopDualSoundness}{StopDualSoundness.agda}: soundness and
-  completeness of stopped duality with respect to coinductive duality;
-\item \AgdaFile{ConversionStopDualSoundness}{conversion bridge}: conversion,
-  stopped duality, and equivalence; and
-\item \AgdaFile{Examples}{Examples.agda}: extracted examples and
-  counterexamples.
+\item \AgdaFile{Types.Direction}{Direction}: send/receive
+  directions and their involution;
+\item \AgdaFile{Types.IND1}{IND1}: indexed recursive syntax,
+  renamings, substitutions, weakening, and syntactic equivalence;
+\item \AgdaFile{Types.COI}{COI}: coinductive session trees,
+  equivalence, relational duality, and functional duality;
+\item \AgdaFile{Types.Tail1}{Tail1}: tail-recursive syntax used by
+  the stack interpretation and message-closure examples;
+\item \AgdaFile{DualTail1}{DualTail1}: stack-based interpretation of
+  recursive syntax into the coinductive model;
+\item \AgdaFile{DualStopAtMu}{DualStopAtMu}: stopped duality,
+  confluence-checked rewrite rules, observational stopped duality, and the
+  ground comparison with functional coinductive duality;
+\item \AgdaFile{Conversion}{Conversion}: syntactic conversion judgments,
+  unrolling adequacy, and conversion soundness;
+\item \AgdaFile{StopDualSoundness}{StopDualSoundness}: soundness and
+  completeness of observational stopped duality with respect to coinductive
+  relational duality;
+\item \AgdaFile{ConversionStopDualSoundness}{ConversionStopDualSoundness}:
+  conversion, stopped duality, syntactic equivalence, and the master
+  comparison theorem;
+\item \AgdaFile{ConversionCompletenessCounterexample}
+  {conversion counterexample}: the period-collapse example
+  showing that inductive conversion does not capture all coinductive
+  regular-tree behavior;
+\item \AgdaFile{MessageClosure}{MessageClosure}: translation from open
+  recursive syntax to tail syntax with closed channel payloads;
+\item \AgdaFile{Examples}{Examples}: examples and counterexamples used by
+  the paper; and
+\item \AgdaFile{Auxiliary.Extensionality}{Extensionality}: the
+  functional extensionality postulate used by syntax-manipulation lemmas.
 \end{itemize}
+
+The repository also retains older or out-of-focus developments:
+\texttt{Types/IND.agda}, \texttt{Duality.agda}, \texttt{DualRel.agda},
+\texttt{STypeCongruence.agda}, and the modules under \texttt{OutOfFocus/}.
+They are not used by the results stated in this paper.
 
 \end{document}
