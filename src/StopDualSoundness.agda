@@ -1,14 +1,9 @@
 {-# OPTIONS --rewriting --guardedness #-}
 module StopDualSoundness where
 
-import Data.Fin as Fin
 open import Data.Fin using (Fin)
-open import Data.Nat using (ℕ; zero; suc)
+open import Data.Nat using (ℕ)
 open import Function using (_∘_)
-open import Relation.Binary.PropositionalEquality
-  using (_≡_; refl; cong; cong₂)
-
-open import Auxiliary.Extensionality using (ext)
 import Types.IND1 as IND
 import Types.COI as COI
 import DualTail1 as DT
@@ -24,7 +19,6 @@ private
     G₁ : IND.GType 1
     F K L M : COI.STypeF COI.SType
     X Y Z W : COI.SType
-    A B C : COI.Type
 
 ----------------------------------------------------------------------
 -- Transport of coinductive duality along coinductive equivalence
@@ -65,134 +59,13 @@ COI.Dual.force (⊥-resp-≈ X≈Y Z≈Q Y⊥Z) =
 ----------------------------------------------------------------------
 -- Syntactic equivalence is sound for the stack interpretation
 
-liftRen-id :
-  {n : ℕ} {ρ : IND.Ren n n} →
-  ((x : Fin n) → ρ x ≡ x) →
-  (x : Fin (suc n)) →
-  IND.liftRen ρ x ≡ x
-liftRen-id ρ-id Fin.zero =
-  refl
-liftRen-id ρ-id (Fin.suc x) =
-  cong Fin.suc (ρ-id x)
-
-rename-idS :
-  {n : ℕ} (ρ : IND.Ren n n) →
-  ((x : Fin n) → ρ x ≡ x) →
-  (S : IND.SType n) →
-  IND.renameS ρ S ≡ S
-rename-idG :
-  {n : ℕ} (ρ : IND.Ren n n) →
-  ((x : Fin n) → ρ x ≡ x) →
-  (G : IND.GType n) →
-  IND.renameG ρ G ≡ G
-rename-idT :
-  {n : ℕ} (ρ : IND.Ren n n) →
-  ((x : Fin n) → ρ x ≡ x) →
-  (T : IND.Type n) →
-  IND.renameT ρ T ≡ T
-
-rename-idS ρ ρ-id (IND.gdd G) =
-  cong IND.gdd (rename-idG ρ ρ-id G)
-rename-idS ρ ρ-id (IND.rec G) =
-  cong IND.rec (rename-idG (IND.liftRen ρ) (liftRen-id ρ-id) G)
-rename-idS ρ ρ-id (IND.var x) =
-  cong IND.var (ρ-id x)
-
-rename-idG ρ ρ-id (IND.transmit d T S) =
-  cong₂ (IND.transmit d) (rename-idT ρ ρ-id T) (rename-idS ρ ρ-id S)
-rename-idG ρ ρ-id (IND.choice d m alt) =
-  cong (IND.choice d m) (ext (rename-idS ρ ρ-id ∘ alt))
-rename-idG ρ ρ-id IND.end =
-  refl
-
-rename-idT ρ ρ-id IND.TUnit =
-  refl
-rename-idT ρ ρ-id IND.TInt =
-  refl
-rename-idT ρ ρ-id (IND.TPair T U) =
-  cong₂ IND.TPair (rename-idT ρ ρ-id T) (rename-idT ρ ρ-id U)
-rename-idT ρ ρ-id (IND.TFun T U) =
-  cong₂ IND.TFun (rename-idT ρ ρ-id T) (rename-idT ρ ρ-id U)
-rename-idT ρ ρ-id (IND.TChan S) =
-  cong IND.TChan (rename-idS ρ ρ-id S)
-
-weaken0S :
-  (S : IND.SType 0) →
-  IND.weakenS 0 S ≡ S
-weaken0S S =
-  rename-idS (IND.weakenRen 0) (λ ()) S
-
-liftSub-cong :
-  {n m : ℕ} {θ θ' : IND.Sub n m} →
-  ((x : Fin n) → θ x ≡ θ' x) →
-  (x : Fin (suc n)) →
-  IND.liftSub θ x ≡ IND.liftSub θ' x
-liftSub-cong θ≈θ' Fin.zero =
-  refl
-liftSub-cong θ≈θ' (Fin.suc x) =
-  cong (IND.renameS Fin.suc) (θ≈θ' x)
-
-subst-congS :
-  {n m : ℕ} {θ θ' : IND.Sub n m} →
-  ((x : Fin n) → θ x ≡ θ' x) →
-  (S : IND.SType n) →
-  IND.substS θ S ≡ IND.substS θ' S
-subst-congG :
-  {n m : ℕ} {θ θ' : IND.Sub n m} →
-  ((x : Fin n) → θ x ≡ θ' x) →
-  (G : IND.GType n) →
-  IND.substG θ G ≡ IND.substG θ' G
-subst-congT :
-  {n m : ℕ} {θ θ' : IND.Sub n m} →
-  ((x : Fin n) → θ x ≡ θ' x) →
-  (T : IND.Type n) →
-  IND.substT θ T ≡ IND.substT θ' T
-
-subst-congS θ≈θ' (IND.gdd G) =
-  cong IND.gdd (subst-congG θ≈θ' G)
-subst-congS θ≈θ' (IND.rec G) =
-  cong IND.rec (subst-congG (liftSub-cong θ≈θ') G)
-subst-congS θ≈θ' (IND.var x) =
-  θ≈θ' x
-
-subst-congG θ≈θ' (IND.transmit d T S) =
-  cong₂ (IND.transmit d) (subst-congT θ≈θ' T) (subst-congS θ≈θ' S)
-subst-congG θ≈θ' (IND.choice d m alt) =
-  cong (IND.choice d m) (ext (subst-congS θ≈θ' ∘ alt))
-subst-congG θ≈θ' IND.end =
-  refl
-
-subst-congT θ≈θ' IND.TUnit =
-  refl
-subst-congT θ≈θ' IND.TInt =
-  refl
-subst-congT θ≈θ' (IND.TPair T U) =
-  cong₂ IND.TPair (subst-congT θ≈θ' T) (subst-congT θ≈θ' U)
-subst-congT θ≈θ' (IND.TFun T U) =
-  cong₂ IND.TFun (subst-congT θ≈θ' T) (subst-congT θ≈θ' U)
-subst-congT θ≈θ' (IND.TChan S) =
-  cong IND.TChan (subst-congS θ≈θ' S)
-
-single0-subst0 :
-  (S : IND.SType 0) →
-  (x : Fin 1) →
-  IND.singleSub0 Fin.zero S x ≡ Conv.subst0 S x
-single0-subst0 S Fin.zero =
-  weaken0S S
-
-unfold-subst0 :
-  (G : IND.GType 1) →
-  IND.unfold (IND.rec G) ≡ IND.substG (Conv.subst0 (IND.rec G)) G
-unfold-subst0 G =
-  subst-congG (single0-subst0 (IND.rec G)) G
-
 unfold-sound :
   (S : IND.SType 0) →
   DT.ind2coiS DT.ε S COI.≈ DT.ind2coiS DT.ε (IND.gdd (IND.unfold S))
 
 COI.Equiv.force (unfold-sound (IND.gdd G)) =
   COI.≈'-refl
-COI.Equiv.force (unfold-sound (IND.rec G)) rewrite unfold-subst0 G =
+COI.Equiv.force (unfold-sound (IND.rec G)) =
   Conv.subst-soundG (Conv.root G) G
 
 data EqRel : COI.SType → COI.SType → Set where
@@ -209,58 +82,6 @@ data EqRel : COI.SType → COI.SType → Set where
     EqRel Y Z →
     EqRel X Z
 
-eq-embedT :
-  COI.EquivT COI.Equiv A B →
-  COI.EquivT EqRel A B
-eq-embedF :
-  COI.EquivF COI.Equiv F K →
-  COI.EquivF EqRel F K
-
-eq-embedT COI.eq-unit =
-  COI.eq-unit
-eq-embedT COI.eq-int =
-  COI.eq-int
-eq-embedT (COI.eq-pair T≈U V≈W) =
-  COI.eq-pair (eq-embedT T≈U) (eq-embedT V≈W)
-eq-embedT (COI.eq-fun T≈U V≈W) =
-  COI.eq-fun (eq-embedT T≈U) (eq-embedT V≈W)
-eq-embedT (COI.eq-chan S≈R) =
-  COI.eq-chan (eq-known S≈R)
-
-eq-embedF (COI.eq-transmit d T≈U S≈R) =
-  COI.eq-transmit d (eq-embedT T≈U) (eq-known S≈R)
-eq-embedF (COI.eq-choice d S≈R) =
-  COI.eq-choice d (eq-known ∘ S≈R)
-eq-embedF COI.eq-end =
-  COI.eq-end
-
-eq-transT :
-  COI.EquivT EqRel A B →
-  COI.EquivT EqRel B C →
-  COI.EquivT EqRel A C
-eq-transF :
-  COI.EquivF EqRel F K →
-  COI.EquivF EqRel K L →
-  COI.EquivF EqRel F L
-
-eq-transT COI.eq-unit COI.eq-unit =
-  COI.eq-unit
-eq-transT COI.eq-int COI.eq-int =
-  COI.eq-int
-eq-transT (COI.eq-pair T≈U V≈W) (COI.eq-pair U≈T' W≈V') =
-  COI.eq-pair (eq-transT T≈U U≈T') (eq-transT V≈W W≈V')
-eq-transT (COI.eq-fun T≈U V≈W) (COI.eq-fun U≈T' W≈V') =
-  COI.eq-fun (eq-transT T≈U U≈T') (eq-transT V≈W W≈V')
-eq-transT (COI.eq-chan S≈R) (COI.eq-chan R≈Q) =
-  COI.eq-chan (eq-trans S≈R R≈Q)
-
-eq-transF (COI.eq-transmit d T≈U S≈R) (COI.eq-transmit .d U≈T' R≈Q) =
-  COI.eq-transmit d (eq-transT T≈U U≈T') (eq-trans S≈R R≈Q)
-eq-transF (COI.eq-choice d S≈R) (COI.eq-choice .d R≈Q) =
-  COI.eq-choice d (λ i → eq-trans (S≈R i) (R≈Q i))
-eq-transF COI.eq-end COI.eq-end =
-  COI.eq-end
-
 eq-step :
   EqRel X Y →
   COI.EquivF EqRel (COI.SType.force X) (COI.SType.force Y)
@@ -274,15 +95,15 @@ eq-stepT :
     (DT.ind2coiT DT.ε U)
 
 eq-step (eq-known p) =
-  eq-embedF (COI.Equiv.force p)
+  COI.mapEquivF eq-known (COI.Equiv.force p)
 eq-step (eq-trans p q) =
-  eq-transF (eq-step p) (eq-step q)
+  COI.transEquivF eq-trans (eq-step p) (eq-step q)
 eq-step (eq-state {S = S} {R = R} S≈R) =
-  eq-transF
-    (eq-embedF (COI.Equiv.force (unfold-sound S)))
-    (eq-transF
+  COI.transEquivF eq-trans
+    (COI.mapEquivF eq-known (COI.Equiv.force (unfold-sound S)))
+    (COI.transEquivF eq-trans
       (eq-stepG (IND.Equiv.force S≈R))
-      (eq-embedF (COI.≈'-symm (COI.Equiv.force (unfold-sound R)))))
+      (COI.mapEquivF eq-known (COI.≈'-symm (COI.Equiv.force (unfold-sound R)))))
 
 eq-stepG (IND.eq-transmit d T≈U S≈R) =
   COI.eq-transmit d (eq-stepT T≈U) (eq-state S≈R)
@@ -302,48 +123,19 @@ eq-stepT (IND.eq-fun T≈U V≈W) =
 eq-stepT (IND.eq-chan S≈R) =
   COI.eq-chan (eq-state S≈R)
 
-eq-close :
-  EqRel X Y →
-  X COI.≈ Y
-eq-closeT :
-  COI.EquivT EqRel A B →
-  COI.EquivT COI.Equiv A B
-eq-closeF :
-  COI.EquivF EqRel F K →
-  COI.EquivF COI.Equiv F K
-
-COI.Equiv.force (eq-close rel) =
-  eq-closeF (eq-step rel)
-
-eq-closeT COI.eq-unit =
-  COI.eq-unit
-eq-closeT COI.eq-int =
-  COI.eq-int
-eq-closeT (COI.eq-pair T≈U V≈W) =
-  COI.eq-pair (eq-closeT T≈U) (eq-closeT V≈W)
-eq-closeT (COI.eq-fun T≈U V≈W) =
-  COI.eq-fun (eq-closeT T≈U) (eq-closeT V≈W)
-eq-closeT (COI.eq-chan S≈R) =
-  COI.eq-chan (eq-close S≈R)
-
-eq-closeF (COI.eq-transmit d T≈U S≈R) =
-  COI.eq-transmit d (eq-closeT T≈U) (eq-close S≈R)
-eq-closeF (COI.eq-choice d S≈R) =
-  COI.eq-choice d (eq-close ∘ S≈R)
-eq-closeF COI.eq-end =
-  COI.eq-end
+module EqClose = COI.CloseEquiv EqRel eq-step
 
 equiv-soundS :
   S IND.≈ R →
   DT.ind2coiS DT.ε S COI.≈ DT.ind2coiS DT.ε R
 equiv-soundS S≈R =
-  eq-close (eq-state S≈R)
+  EqClose.close (eq-state S≈R)
 
 equiv-soundG :
   G IND.≈' H →
   DT.ind2coiG DT.ε G COI.≈' DT.ind2coiG DT.ε H
 equiv-soundG G≈H =
-  eq-closeF (eq-stepG G≈H)
+  EqClose.closeF (eq-stepG G≈H)
 
 equiv-soundT :
   IND.EquivT IND.Equiv T U →
@@ -351,7 +143,7 @@ equiv-soundT :
     (DT.ind2coiT DT.ε T)
     (DT.ind2coiT DT.ε U)
 equiv-soundT T≈U =
-  eq-closeT (eq-stepT T≈U)
+  EqClose.closeT (eq-stepT T≈U)
 
 ----------------------------------------------------------------------
 -- Soundness of stopped duality

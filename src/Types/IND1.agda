@@ -93,6 +93,19 @@ substT σ (TPair ty ty₁) = TPair (substT σ ty) (substT σ ty₁)
 substT σ (TFun ty ty₁) = TFun (substT σ ty) (substT σ ty₁)
 substT σ (TChan x) = TChan (substS σ x)
 
+-- Substitute an arbitrary session type for the newest variable.
+subst0 : SType n → Sub (suc n) n
+subst0 S zero = S
+subst0 S (suc x) = var x
+
+-- Expose the guarded head of a recursive type, either as a guarded type or
+-- embedded back into the session-type syntax.
+unrollG : GType (suc n) → GType n
+unrollG G = substG (subst0 (rec G)) G
+
+unroll : GType (suc n) → SType n
+unroll G = gdd (unrollG G)
+
 ----------------------------------------------------------------------
 -- weakening as renaming
 
@@ -236,8 +249,7 @@ weaken1-weakenT m j (TChan x) = cong TChan (weaken1-weakenS m j x)
 -- single closed substitution as a simultaneous substitution
 
 singleSub0 : Fin (suc n) → SType 0 → Sub (suc n) n
-singleSub0 {n} zero st0 zero = weakenS n st0
-singleSub0 {suc n} zero st0 (suc x) = var x
+singleSub0 {n} zero st0 = subst0 (weakenS n st0)
 singleSub0 {suc n} (suc i) st0 = liftSub (singleSub0 {n} i st0)
 
 st-substS : SType (suc n) → Fin (suc n) → SType 0 → SType n
@@ -263,13 +275,13 @@ trivial-subst-var' (suc x) ist1 ist2 = refl
 --------------------------------------------------------------------
 -- equivalence
 variable
-  t t₁ t₂ t₁' t₂' : Type n
-  s s₁ s₂ : SType n
-  g g₁ g₂ : GType n
+  t t₁ t₂ t₃ t₁' t₂' : Type n
+  s s₁ s₂ s₃ : SType n
+  g g₁ g₂ g₃ : GType n
 
 unfold : SType 0 → GType 0
 unfold (gdd gst) = gst
-unfold (rec gst) = st-substG gst zero (rec gst)
+unfold (rec gst) = unrollG gst
 
 -- type equivalence
 data EquivT (R : SType n → SType n → Set) : Type n → Type n → Set where
@@ -330,3 +342,28 @@ force (≈-symm s₁≈s₂) = ≈'-symm (force s₁≈s₂)
 ≈ᵗ-symm (eq-pair t₁≈ᵗt₂ t₁≈ᵗt₃) = eq-pair (≈ᵗ-symm t₁≈ᵗt₂) (≈ᵗ-symm t₁≈ᵗt₃)
 ≈ᵗ-symm (eq-fun t₁≈ᵗt₂ t₁≈ᵗt₃) = eq-fun (≈ᵗ-symm t₁≈ᵗt₂) (≈ᵗ-symm t₁≈ᵗt₃)
 ≈ᵗ-symm (eq-chan x) = eq-chan (≈-symm x)
+
+-- transitive
+
+≈-trans : s₁ ≈ s₂ → s₂ ≈ s₃ → s₁ ≈ s₃
+≈'-trans : g₁ ≈' g₂ → g₂ ≈' g₃ → g₁ ≈' g₃
+≈ᵗ-trans : t₁ ≈ᵗ t₂ → t₂ ≈ᵗ t₃ → t₁ ≈ᵗ t₃
+
+force (≈-trans s₁≈s₂ s₂≈s₃) =
+  ≈'-trans (force s₁≈s₂) (force s₂≈s₃)
+
+≈'-trans (eq-transmit d t₁≈t₂ s₁≈s₂)
+         (eq-transmit .d t₂≈t₃ s₂≈s₃) =
+  eq-transmit d (≈ᵗ-trans t₁≈t₂ t₂≈t₃) (≈-trans s₁≈s₂ s₂≈s₃)
+≈'-trans (eq-choice d s₁≈s₂) (eq-choice .d s₂≈s₃) =
+  eq-choice d (λ i → ≈-trans (s₁≈s₂ i) (s₂≈s₃ i))
+≈'-trans eq-end eq-end = eq-end
+
+≈ᵗ-trans eq-unit eq-unit = eq-unit
+≈ᵗ-trans eq-int eq-int = eq-int
+≈ᵗ-trans (eq-pair t₁≈t₂ t₁'≈t₂') (eq-pair t₂≈t₃ t₂'≈t₃') =
+  eq-pair (≈ᵗ-trans t₁≈t₂ t₂≈t₃) (≈ᵗ-trans t₁'≈t₂' t₂'≈t₃')
+≈ᵗ-trans (eq-fun t₁≈t₂ t₁'≈t₂') (eq-fun t₂≈t₃ t₂'≈t₃') =
+  eq-fun (≈ᵗ-trans t₁≈t₂ t₂≈t₃) (≈ᵗ-trans t₁'≈t₂' t₂'≈t₃')
+≈ᵗ-trans (eq-chan s₁≈s₂) (eq-chan s₂≈s₃) =
+  eq-chan (≈-trans s₁≈s₂ s₂≈s₃)

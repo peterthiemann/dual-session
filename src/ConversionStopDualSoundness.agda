@@ -3,18 +3,14 @@ module ConversionStopDualSoundness where
 
 import Types.IND1 as IND
 import Types.COI as COI
-import DualTail1 as DT
 import DualStopAtMu as Stop
 import Conversion as Conv
+open Conv using (semS)
 import StopDualSoundness as SDS
 
 private
   variable
     S R : IND.SType 0
-
-semS : IND.SType 0 → COI.SType
-semS =
-  DT.ind2coiS DT.ε
 
 infix 1 _↔_
 

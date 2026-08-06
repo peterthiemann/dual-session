@@ -550,8 +550,11 @@ H,K &::= \End \mid !T.S \mid ?T.S
           {S \StopDual R}
 \end{array}
 \]
-\AgdaCounterparts{unfolding
-\AgdaName{Types.IND1}{unfold}{unfold} and stopped duality
+\AgdaCounterparts{newest-variable substitution and unrolling
+\AgdaName{Types.IND1}{subst0}{subst0},
+\AgdaName{Types.IND1}{unrollG}{unrollG},
+\AgdaName{Types.IND1}{unroll}{unroll}, and
+\AgdaName{Types.IND1}{unfold}{unfold}; stopped duality
 \AgdaName{DualStopAtMu}{StopDualG}{StopDualG} and
 \AgdaName{DualStopAtMu}{StopDual}{StopDual}}
 \caption{Stopped duality.  Observation unfolds recursive types before
@@ -719,8 +722,8 @@ head-matching parts of the figure: they require opposite visible directions,
 equivalent payload types, and recursively
 \AgdaName{DualStopAtMu}{StopDual}{StopDual}-related continuations.  It also
 provides symmetry
-\AgdaMathName{DualStopAtMu}{2574}{$\mathsf{symm}$} and inversion
-\AgdaMathName{DualStopAtMu}{4133}{$\mathsf{inv}$} lemmas.
+\AgdaMathName{DualStopAtMu}{2593}{$\mathsf{symm}$} and inversion
+\AgdaMathName{DualStopAtMu}{3103}{$\mathsf{inv}$} lemmas.
 
 The Agda file \AgdaFile{StopDualSoundness}{SDS} mechanizes the equivalence
 between statements (i) and (ii) in Theorem~\ref{thm:master-comparison}.
@@ -772,7 +775,11 @@ by \AgdaName{Types.IND1}{renameS}{renameS},
 represented by \AgdaName{Types.IND1}{Sub}{Sub} and implemented by
 \AgdaName{Types.IND1}{substS}{substS},
 \AgdaName{Types.IND1}{substG}{substG}, and
-\AgdaName{Types.IND1}{substT}{substT}.  Every type representation now
+\AgdaName{Types.IND1}{substT}{substT}.  Substitution for the newest variable
+is \AgdaName{Types.IND1}{subst0}{subst0}; the canonical one-step unfolding
+operations are \AgdaName{Types.IND1}{unrollG}{unrollG} and
+\AgdaName{Types.IND1}{unroll}{unroll}, with closed observation through
+\AgdaName{Types.IND1}{unfold}{unfold}.  Every type representation now
 contains the arrow constructor \texttt{TFun}; the constructor is covered by
 renaming, substitution, embeddings between representations, type equivalence
 and its proofs, message closure, and congruence contexts.

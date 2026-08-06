@@ -21,22 +21,10 @@ private
     G : IND.GType (suc n)
     H : IND.GType n
     alt alt' : Fin m → IND.SType n
-    A B C : COI.Type
-    F K L : COI.STypeF COI.SType
     X Y Z : COI.SType
 
 ----------------------------------------------------------------------
 -- Syntactic conversion
-
--- The body of a recursive type is stored as a guarded communication head.
--- Unrolling substitutes the recursive type for the newest variable and then
--- embeds the exposed head back into the session syntax.
-subst0 : IND.SType n → IND.Sub (suc n) n
-subst0 S zero = S
-subst0 S (suc x) = IND.var x
-
-unroll : IND.GType (suc n) → IND.SType n
-unroll G = IND.gdd (IND.substG (subst0 (IND.rec G)) G)
 
 mutual
   -- Payload conversion is structural.  The only non-trivial call into session
@@ -85,7 +73,7 @@ mutual
       ConvS (Stop.dualS S) (Stop.dualS R)
 
     conv-unroll :
-      ConvS (IND.rec G) (unroll G)
+      ConvS (IND.rec G) (IND.unroll G)
 
     conv-transmit :
       ConvT T U →
@@ -178,7 +166,7 @@ data UnrollSubRel :
     (G : IND.GType 1) →
     UnrollSubRel
       (DT.⟪ DT.ε , G ⟫)
-      (subst0 (IND.rec G))
+      (IND.subst0 (IND.rec G))
       DT.ε
 
   lift :
@@ -248,31 +236,6 @@ data RenRel : COI.SType → COI.SType → Set where
     X COI.≈ Y →
     RenRel X Y
 
-embedT :
-  COI.EquivT COI.Equiv A B →
-  COI.EquivT RenRel A B
-embedF :
-  COI.EquivF COI.Equiv F K →
-  COI.EquivF RenRel F K
-
-embedT COI.eq-unit =
-  COI.eq-unit
-embedT COI.eq-int =
-  COI.eq-int
-embedT (COI.eq-pair T≈A U≈B) =
-  COI.eq-pair (embedT T≈A) (embedT U≈B)
-embedT (COI.eq-fun T≈A U≈B) =
-  COI.eq-fun (embedT T≈A) (embedT U≈B)
-embedT (COI.eq-chan S≈R) =
-  COI.eq-chan (known S≈R)
-
-embedF (COI.eq-transmit d T≈A S≈R) =
-  COI.eq-transmit d (embedT T≈A) (known S≈R)
-embedF (COI.eq-choice d alts) =
-  COI.eq-choice d (known ∘ alts)
-embedF COI.eq-end =
-  COI.eq-end
-
 step :
   RenRel X Y →
   COI.EquivF RenRel (COI.SType.force X) (COI.SType.force Y)
@@ -290,13 +253,13 @@ stepT :
     (DT.ind2coiT (ren-dst env) (IND.renameT (ren-map env) T))
 
 step (known p) =
-  embedF (COI.Equiv.force p)
+  COI.mapEquivF known (COI.Equiv.force p)
 step (ren-state env (IND.gdd G)) =
   stepG env G
 step (ren-state env (IND.rec G)) =
   stepG (push-ren env G) G
 step (ren-state (base-ren σ ρ σ' rel) (IND.var x)) =
-  embedF (COI.Equiv.force (rel x))
+  COI.mapEquivF known (COI.Equiv.force (rel x))
 step (ren-state (push-ren env G) (IND.var zero)) =
   step (ren-state env (IND.rec G))
 step (ren-state (push-ren env G) (IND.var (suc x))) =
@@ -320,36 +283,7 @@ stepT env (IND.TFun T U) =
 stepT env (IND.TChan S) =
   COI.eq-chan (ren-state env S)
 
-close :
-  RenRel X Y →
-  X COI.≈ Y
-closeT :
-  COI.EquivT RenRel A B →
-  COI.EquivT COI.Equiv A B
-closeF :
-  COI.EquivF RenRel F K →
-  COI.EquivF COI.Equiv F K
-
-COI.Equiv.force (close rel) =
-  closeF (step rel)
-
-closeT COI.eq-unit =
-  COI.eq-unit
-closeT COI.eq-int =
-  COI.eq-int
-closeT (COI.eq-pair T≈A U≈B) =
-  COI.eq-pair (closeT T≈A) (closeT U≈B)
-closeT (COI.eq-fun T≈A U≈B) =
-  COI.eq-fun (closeT T≈A) (closeT U≈B)
-closeT (COI.eq-chan S≈R) =
-  COI.eq-chan (close S≈R)
-
-closeF (COI.eq-transmit d T≈A S≈R) =
-  COI.eq-transmit d (closeT T≈A) (close S≈R)
-closeF (COI.eq-choice d alts) =
-  COI.eq-choice d (close ∘ alts)
-closeF COI.eq-end =
-  COI.eq-end
+module RenClose = COI.CloseEquiv RenRel step
 
 -- Official renaming interface.  The extra RenEnv argument is confined to the
 -- auxiliary coalgebra above, so callers see the same API as before.
@@ -360,7 +294,7 @@ rename-soundS :
   (S : IND.SType n) →
   DT.ind2coiS σ S COI.≈ DT.ind2coiS σ' (IND.renameS ρ S)
 rename-soundS {ρ = ρ} {σ = σ} {σ' = σ'} rel S =
-  close (ren-state (base-ren σ ρ σ' rel) S)
+  RenClose.close (ren-state (base-ren σ ρ σ' rel) S)
 
 rename-soundG :
   {ρ : IND.Ren n m} {σ : DT.Stack {IND.GType} n}
@@ -369,7 +303,7 @@ rename-soundG :
   (G : IND.GType n) →
   DT.ind2coiG σ G COI.≈' DT.ind2coiG σ' (IND.renameG ρ G)
 rename-soundG {ρ = ρ} {σ = σ} {σ' = σ'} rel G =
-  closeF (stepG (base-ren σ ρ σ' rel) G)
+  RenClose.closeF (stepG (base-ren σ ρ σ' rel) G)
 
 rename-soundT :
   {ρ : IND.Ren n m} {σ : DT.Stack {IND.GType} n}
@@ -380,7 +314,7 @@ rename-soundT :
     (DT.ind2coiT σ T)
     (DT.ind2coiT σ' (IND.renameT ρ T))
 rename-soundT {ρ = ρ} {σ = σ} {σ' = σ'} rel T =
-  closeT (stepT (base-ren σ ρ σ' rel) T)
+  RenClose.closeT (stepT (base-ren σ ρ σ' rel) T)
 
 -- Substitution soundness uses the same coalgebraic pattern.  The relation has
 -- one constructor for substitution obligations, embeds renaming obligations
@@ -407,83 +341,6 @@ data SubRel : COI.SType → COI.SType → Set where
     SubRel X Y →
     SubRel Y Z →
     SubRel X Z
-
-sub-embedT :
-  COI.EquivT COI.Equiv A B →
-  COI.EquivT SubRel A B
-sub-embedF :
-  COI.EquivF COI.Equiv F K →
-  COI.EquivF SubRel F K
-
-sub-embedT COI.eq-unit =
-  COI.eq-unit
-sub-embedT COI.eq-int =
-  COI.eq-int
-sub-embedT (COI.eq-pair T≈A U≈B) =
-  COI.eq-pair (sub-embedT T≈A) (sub-embedT U≈B)
-sub-embedT (COI.eq-fun T≈A U≈B) =
-  COI.eq-fun (sub-embedT T≈A) (sub-embedT U≈B)
-sub-embedT (COI.eq-chan S≈R) =
-  COI.eq-chan (sub-known S≈R)
-
-sub-embedF (COI.eq-transmit d T≈A S≈R) =
-  COI.eq-transmit d (sub-embedT T≈A) (sub-known S≈R)
-sub-embedF (COI.eq-choice d alts) =
-  COI.eq-choice d (sub-known ∘ alts)
-sub-embedF COI.eq-end =
-  COI.eq-end
-
-ren-embedT :
-  COI.EquivT RenRel A B →
-  COI.EquivT SubRel A B
-ren-embedF :
-  COI.EquivF RenRel F K →
-  COI.EquivF SubRel F K
-
-ren-embedT COI.eq-unit =
-  COI.eq-unit
-ren-embedT COI.eq-int =
-  COI.eq-int
-ren-embedT (COI.eq-pair T≈A U≈B) =
-  COI.eq-pair (ren-embedT T≈A) (ren-embedT U≈B)
-ren-embedT (COI.eq-fun T≈A U≈B) =
-  COI.eq-fun (ren-embedT T≈A) (ren-embedT U≈B)
-ren-embedT (COI.eq-chan S≈R) =
-  COI.eq-chan (sub-ren S≈R)
-
-ren-embedF (COI.eq-transmit d T≈A S≈R) =
-  COI.eq-transmit d (ren-embedT T≈A) (sub-ren S≈R)
-ren-embedF (COI.eq-choice d alts) =
-  COI.eq-choice d (sub-ren ∘ alts)
-ren-embedF COI.eq-end =
-  COI.eq-end
-
-sub-transT :
-  COI.EquivT SubRel A B →
-  COI.EquivT SubRel B C →
-  COI.EquivT SubRel A C
-sub-transF :
-  COI.EquivF SubRel F K →
-  COI.EquivF SubRel K L →
-  COI.EquivF SubRel F L
-
-sub-transT COI.eq-unit COI.eq-unit =
-  COI.eq-unit
-sub-transT COI.eq-int COI.eq-int =
-  COI.eq-int
-sub-transT (COI.eq-pair T≈A U≈B) (COI.eq-pair A≈C B≈D) =
-  COI.eq-pair (sub-transT T≈A A≈C) (sub-transT U≈B B≈D)
-sub-transT (COI.eq-fun T≈A U≈B) (COI.eq-fun A≈C B≈D) =
-  COI.eq-fun (sub-transT T≈A A≈C) (sub-transT U≈B B≈D)
-sub-transT (COI.eq-chan S≈R) (COI.eq-chan R≈Q) =
-  COI.eq-chan (sub-trans S≈R R≈Q)
-
-sub-transF (COI.eq-transmit d T≈A S≈R) (COI.eq-transmit .d A≈C R≈Q) =
-  COI.eq-transmit d (sub-transT T≈A A≈C) (sub-trans S≈R R≈Q)
-sub-transF (COI.eq-choice d S≈R) (COI.eq-choice .d R≈Q) =
-  COI.eq-choice d (λ i → sub-trans (S≈R i) (R≈Q i))
-sub-transF COI.eq-end COI.eq-end =
-  COI.eq-end
 
 sub-step :
   SubRel X Y →
@@ -514,11 +371,11 @@ sub-stepT :
     (DT.ind2coiT σ' (IND.substT θ T))
 
 sub-step (sub-known p) =
-  sub-embedF (COI.Equiv.force p)
+  COI.mapEquivF sub-known (COI.Equiv.force p)
 sub-step (sub-ren rel) =
-  ren-embedF (step rel)
+  COI.mapEquivF sub-ren (step rel)
 sub-step (sub-trans rel₁ rel₂) =
-  sub-transF (sub-step rel₁) (sub-step rel₂)
+  COI.transEquivF sub-trans (sub-step rel₁) (sub-step rel₂)
 sub-step (sub-state rel (IND.gdd G)) =
   sub-stepG rel G
 sub-step (sub-state rel (IND.rec G)) =
@@ -527,15 +384,15 @@ sub-step (sub-state rel (IND.var x)) =
   sub-stepVar rel x
 
 sub-stepVar (root G) zero =
-  sub-embedF COI.≈'-refl
+  COI.mapEquivF sub-known COI.≈'-refl
 sub-stepVar (lift rel G) zero =
   sub-stepG (lift rel G) G
 sub-stepVar (lift {θ = θ} {σ = σ} {σ' = σ'} rel G) (suc x) =
-  sub-transF
-    (sub-transF
-      (sub-embedF (COI.Equiv.force (COI.≈-symm (dropRel σ G x))))
+  COI.transEquivF sub-trans
+    (COI.transEquivF sub-trans
+      (COI.mapEquivF sub-known (COI.Equiv.force (COI.≈-symm (dropRel σ G x))))
       (sub-stepVar rel x))
-    (ren-embedF
+    (COI.mapEquivF sub-ren
       (step
         (ren-state
           (base-ren
@@ -563,36 +420,7 @@ sub-stepT rel (IND.TFun T U) =
 sub-stepT rel (IND.TChan S) =
   COI.eq-chan (sub-state rel S)
 
-sub-close :
-  SubRel X Y →
-  X COI.≈ Y
-sub-closeT :
-  COI.EquivT SubRel A B →
-  COI.EquivT COI.Equiv A B
-sub-closeF :
-  COI.EquivF SubRel F K →
-  COI.EquivF COI.Equiv F K
-
-COI.Equiv.force (sub-close rel) =
-  sub-closeF (sub-step rel)
-
-sub-closeT COI.eq-unit =
-  COI.eq-unit
-sub-closeT COI.eq-int =
-  COI.eq-int
-sub-closeT (COI.eq-pair T≈A U≈B) =
-  COI.eq-pair (sub-closeT T≈A) (sub-closeT U≈B)
-sub-closeT (COI.eq-fun T≈A U≈B) =
-  COI.eq-fun (sub-closeT T≈A) (sub-closeT U≈B)
-sub-closeT (COI.eq-chan S≈R) =
-  COI.eq-chan (sub-close S≈R)
-
-sub-closeF (COI.eq-transmit d T≈A S≈R) =
-  COI.eq-transmit d (sub-closeT T≈A) (sub-close S≈R)
-sub-closeF (COI.eq-choice d alts) =
-  COI.eq-choice d (sub-close ∘ alts)
-sub-closeF COI.eq-end =
-  COI.eq-end
+module SubClose = COI.CloseEquiv SubRel sub-step
 
 -- Official substitution interface.  The coalgebra carries the extra structure;
 -- the exported lemmas keep the old argument shape.
@@ -603,7 +431,7 @@ lookupSub :
   (x : Fin n) →
   DT.ind2coiS σ (IND.var x) COI.≈ DT.ind2coiS σ' (θ x)
 lookupSub rel x =
-  sub-close (sub-state rel (IND.var x))
+  SubClose.close (sub-state rel (IND.var x))
 
 subst-soundS :
   {θ : IND.Sub n m} {σ : DT.Stack {IND.GType} n}
@@ -612,7 +440,7 @@ subst-soundS :
   (S : IND.SType n) →
   DT.ind2coiS σ S COI.≈ DT.ind2coiS σ' (IND.substS θ S)
 subst-soundS rel S =
-  sub-close (sub-state rel S)
+  SubClose.close (sub-state rel S)
 
 subst-soundG :
   {θ : IND.Sub n m} {σ : DT.Stack {IND.GType} n}
@@ -621,7 +449,7 @@ subst-soundG :
   (G : IND.GType n) →
   DT.ind2coiG σ G COI.≈' DT.ind2coiG σ' (IND.substG θ G)
 subst-soundG rel G =
-  sub-closeF (sub-stepG rel G)
+  SubClose.closeF (sub-stepG rel G)
 
 subst-soundT :
   {θ : IND.Sub n m} {σ : DT.Stack {IND.GType} n}
@@ -632,11 +460,11 @@ subst-soundT :
     (DT.ind2coiT σ T)
     (DT.ind2coiT σ' (IND.substT θ T))
 subst-soundT rel T =
-  sub-closeT (sub-stepT rel T)
+  SubClose.closeT (sub-stepT rel T)
 
 unroll-sound :
   {G : IND.GType 1} →
-  semS (IND.rec G) COI.≈ semS (unroll G)
+  semS (IND.rec G) COI.≈ semS (IND.unroll G)
 COI.Equiv.force (unroll-sound {G = G}) =
   subst-soundG (root G) G
 

@@ -1,4 +1,4 @@
-{-# OPTIONS --rewriting --guardedness #-}
+{-# OPTIONS --rewriting --confluence-check --guardedness #-}
 module DualStopAtMu where
 
 open import Data.Fin using (Fin; zero; suc)
@@ -103,41 +103,6 @@ StopDual.observe (⊥sd-symm p) =
   sd-choice (COI.DualD-symm dualD) (⊥sd-symm ∘ ps)
 ⊥sd'-symm sd-end =
   sd-end
-
-----------------------------------------------------------------------
--- Transitivity of observational equivalence
-
-≈-trans :
-  {S₁ S₂ S₃ : SType 0} →
-  S₁ ≈ S₂ → S₂ ≈ S₃ → S₁ ≈ S₃
-≈'-trans :
-  {G₁ G₂ G₃ : GType 0} →
-  G₁ ≈' G₂ → G₂ ≈' G₃ → G₁ ≈' G₃
-≈ᵗ-trans :
-  {T₁ T₂ T₃ : Type 0} →
-  T₁ ≈ᵗ T₂ → T₂ ≈ᵗ T₃ → T₁ ≈ᵗ T₃
-
-Equiv.force (≈-trans S₁≈S₂ S₂≈S₃) =
-  ≈'-trans (Equiv.force S₁≈S₂) (Equiv.force S₂≈S₃)
-
-≈'-trans (eq-transmit d T₁≈T₂ S₁≈S₂)
-         (eq-transmit .d T₂≈T₃ S₂≈S₃) =
-  eq-transmit d (≈ᵗ-trans T₁≈T₂ T₂≈T₃) (≈-trans S₁≈S₂ S₂≈S₃)
-≈'-trans (eq-choice d S₁≈S₂) (eq-choice .d S₂≈S₃) =
-  eq-choice d (λ i → ≈-trans (S₁≈S₂ i) (S₂≈S₃ i))
-≈'-trans eq-end eq-end =
-  eq-end
-
-≈ᵗ-trans eq-unit eq-unit =
-  eq-unit
-≈ᵗ-trans eq-int eq-int =
-  eq-int
-≈ᵗ-trans (eq-pair T₁≈T₂ U₁≈U₂) (eq-pair T₂≈T₃ U₂≈U₃) =
-  eq-pair (≈ᵗ-trans T₁≈T₂ T₂≈T₃) (≈ᵗ-trans U₁≈U₂ U₂≈U₃)
-≈ᵗ-trans (eq-fun T₁≈T₂ U₁≈U₂) (eq-fun T₂≈T₃ U₂≈U₃) =
-  eq-fun (≈ᵗ-trans T₁≈T₂ T₂≈T₃) (≈ᵗ-trans U₁≈U₂ U₂≈U₃)
-≈ᵗ-trans (eq-chan S₁≈S₂) (eq-chan S₂≈S₃) =
-  eq-chan (≈-trans S₁≈S₂ S₂≈S₃)
 
 ----------------------------------------------------------------------
 -- Involution of observational stopped duality

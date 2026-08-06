@@ -58,6 +58,60 @@ data EquivF (R : SType → SType → Set) : STypeF SType → STypeF SType → Se
   eq-choice : ∀ {alt alt'} → (d : Dir) → ((i : Fin m) → R (alt i) (alt' i)) → EquivF R (choice d m alt) (choice d m alt')
   eq-end : EquivF R end end
 
+-- Equivalence shapes are functorial in their continuation relation.
+mapEquivT :
+  {R Q : SType → SType → Set} →
+  (∀ {s₁ s₂} → R s₁ s₂ → Q s₁ s₂) →
+  EquivT R t₁ t₂ →
+  EquivT Q t₁ t₂
+mapEquivT rel eq-unit = eq-unit
+mapEquivT rel eq-int = eq-int
+mapEquivT rel (eq-pair t₁≈t₂ t₁'≈t₂') =
+  eq-pair (mapEquivT rel t₁≈t₂) (mapEquivT rel t₁'≈t₂')
+mapEquivT rel (eq-fun t₁≈t₂ t₁'≈t₂') =
+  eq-fun (mapEquivT rel t₁≈t₂) (mapEquivT rel t₁'≈t₂')
+mapEquivT rel (eq-chan s₁≈s₂) = eq-chan (rel s₁≈s₂)
+
+mapEquivF :
+  {R Q : SType → SType → Set} →
+  (∀ {s₁ s₂} → R s₁ s₂ → Q s₁ s₂) →
+  EquivF R s₁' s₂' →
+  EquivF Q s₁' s₂'
+mapEquivF rel (eq-transmit d t₁≈t₂ s₁≈s₂) =
+  eq-transmit d (mapEquivT rel t₁≈t₂) (rel s₁≈s₂)
+mapEquivF rel (eq-choice d alts) =
+  eq-choice d (rel ∘ alts)
+mapEquivF rel eq-end = eq-end
+
+-- Structural transitivity lifts any transitive continuation relation.
+transEquivT :
+  {R : SType → SType → Set} →
+  (∀ {s₁ s₂ s₃} → R s₁ s₂ → R s₂ s₃ → R s₁ s₃) →
+  EquivT R t₁ t₂ →
+  EquivT R t₂ t₃ →
+  EquivT R t₁ t₃
+transEquivT trans eq-unit eq-unit = eq-unit
+transEquivT trans eq-int eq-int = eq-int
+transEquivT trans (eq-pair t₁≈t₂ t₁'≈t₂') (eq-pair t₂≈t₃ t₂'≈t₃') =
+  eq-pair (transEquivT trans t₁≈t₂ t₂≈t₃) (transEquivT trans t₁'≈t₂' t₂'≈t₃')
+transEquivT trans (eq-fun t₁≈t₂ t₁'≈t₂') (eq-fun t₂≈t₃ t₂'≈t₃') =
+  eq-fun (transEquivT trans t₁≈t₂ t₂≈t₃) (transEquivT trans t₁'≈t₂' t₂'≈t₃')
+transEquivT trans (eq-chan s₁≈s₂) (eq-chan s₂≈s₃) =
+  eq-chan (trans s₁≈s₂ s₂≈s₃)
+
+transEquivF :
+  {R : SType → SType → Set} →
+  (∀ {s₁ s₂ s₃} → R s₁ s₂ → R s₂ s₃ → R s₁ s₃) →
+  EquivF R s₁' s₂' →
+  EquivF R s₂' s₃' →
+  EquivF R s₁' s₃'
+transEquivF trans (eq-transmit d t₁≈t₂ s₁≈s₂)
+                  (eq-transmit .d t₂≈t₃ s₂≈s₃) =
+  eq-transmit d (transEquivT trans t₁≈t₂ t₂≈t₃) (trans s₁≈s₂ s₂≈s₃)
+transEquivF trans (eq-choice d s₁≈s₂) (eq-choice .d s₂≈s₃) =
+  eq-choice d (λ i → trans (s₁≈s₂ i) (s₂≈s₃ i))
+transEquivF trans eq-end eq-end = eq-end
+
 record Equiv (s₁ : SType) (s₂ : SType) : Set where
   coinductive
   field force : EquivF Equiv (force s₁) (force s₂)
@@ -67,6 +121,33 @@ open Equiv
 _≈_ = Equiv
 _≈'_ = EquivF Equiv
 _≈ᵗ_ = EquivT Equiv
+
+-- Close a one-step equivalence coalgebra coinductively.  The structural
+-- traversals live here so clients do not have to duplicate them, while the
+-- recursive calls remain visible to Agda's guardedness checker.
+module CloseEquiv
+    (R : SType → SType → Set)
+    (step : ∀ {s₁ s₂} → R s₁ s₂ → EquivF R (force s₁) (force s₂))
+  where
+
+  close : ∀ {s₁ s₂} → R s₁ s₂ → s₁ ≈ s₂
+  closeT : ∀ {t₁ t₂} → EquivT R t₁ t₂ → t₁ ≈ᵗ t₂
+  closeF : ∀ {s₁' s₂'} → EquivF R s₁' s₂' → s₁' ≈' s₂'
+
+  force (close rel) = closeF (step rel)
+
+  closeT eq-unit = eq-unit
+  closeT eq-int = eq-int
+  closeT (eq-pair t₁≈t₂ t₁'≈t₂') =
+    eq-pair (closeT t₁≈t₂) (closeT t₁'≈t₂')
+  closeT (eq-fun t₁≈t₂ t₁'≈t₂') =
+    eq-fun (closeT t₁≈t₂) (closeT t₁'≈t₂')
+  closeT (eq-chan s₁≈s₂) = eq-chan (close s₁≈s₂)
+
+  closeF (eq-transmit d t₁≈t₂ s₁≈s₂) =
+    eq-transmit d (closeT t₁≈t₂) (close s₁≈s₂)
+  closeF (eq-choice d alts) = eq-choice d (close ∘ alts)
+  closeF eq-end = eq-end
 
 -- reflexivity
 ≈ᵗ-refl : t ≈ᵗ t
